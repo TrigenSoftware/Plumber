@@ -1,0 +1,43 @@
+/* Typography classes. Inline classes never set a font size - they inherit it. */
+.title {
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--colorText);
+  font-size: var(--sizeTextXxl);
+  font-weight: 650;
+}
+
+.subtitle {
+  margin: 0;
+  line-height: 1.25;
+  color: var(--colorText);
+  font-size: var(--sizeTextXl);
+  font-weight: 600;
+}
+
+.heading {
+  margin: 0;
+  line-height: 1.3;
+  color: var(--colorText);
+  font-size: var(--sizeTextLg);
+  font-weight: 600;
+}
+
+.text {
+  margin: 0;
+  font-size: var(--sizeText);
+}
+
+.small {
+  margin: 0;
+  font-size: var(--sizeTextSm);
+}
+
+.muted {
+  color: var(--colorTextMuted);
+}
+
+.mono {
+  font-family: var(--fontMono);
+}

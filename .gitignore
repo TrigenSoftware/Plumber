@@ -1,0 +1,51 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Coverage directory used by tools like istanbul
+coverage
+
+# Dependency directory
+node_modules
+
+# Optional npm cache directory
+.npm
+
+# OS stuff
+._*
+.DS_Store
+
+# Some caches
+.*cache
+
+# Build output
+dist
+storybook-static
+
+# Env files
+.env
+
+# IDE files
+.idea
+.vscode
+
+# Temporary files
+tmp
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Installer artefacts, produced when debugging it by hand in packages/installer/
+*.run
+*.bak-*
+packages/installer/art/
+packages/installer/game.archive
+install.log
+
+# Staff
+.vite*
+.codex
+.claude
+.agents

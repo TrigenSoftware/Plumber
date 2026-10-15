@@ -1,0 +1,40 @@
+/* Element defaults. The only global styles besides styles.css. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--colorBackground);
+  line-height: 1.5;
+  color: var(--colorText);
+  font-family: var(--fontText);
+  font-size: var(--sizeText);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  text-decoration-thickness: from-font;
+  text-underline-offset: 0.15em;
+  color: var(--colorBrand);
+}
+
+a:hover,
+a:focus {
+  color: var(--colorBrandLight);
+}
+
+/* A class with its own display beats the browser's [hidden] rule, so blocks
+   that lay themselves out with grid or flex stay visible when hidden. */
+
+[hidden] {
+  display: none !important;
+}
+
+img,
+svg {
+  display: block;
+  max-inline-size: 100%;
+}

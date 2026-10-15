@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    /* Type Checking */
+    "strict": true,
+    "strictBindCallApply": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    /* Modules */
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    /* Emit */
+    "noEmit": true,
+    /* Interop Constraints */
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    /* Language and Environment */
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable"
+    ],
+    "types": [
+      "node"
+    ],
+    "target": "ESNext",
+    /* Completeness */
+    "skipLibCheck": true,
+    "allowJs": true
+  },
+  "include": [
+    "*.js",
+    "*.ts"
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "name": "plumber",
+  "type": "module",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Builds a self-extracting .run installer that adds a Windows game to the Steam library on a Steam Deck.",
+  "author": "dangreen",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TrigenSoftware/Plumber.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TrigenSoftware/Plumber/issues"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "clear": "pnpm -r --no-sort --if-present clear",
+    "dev": "pnpm --filter @plumber/frontend dev",
+    "storybook": "pnpm --filter @plumber/frontend storybook",
+    "build": "pnpm -r --no-sort --if-present build",
+    "preview": "pnpm --filter @plumber/frontend preview",
+    "lint": "pnpm -r --no-sort --if-present lint",
+    "format": "pnpm -r --no-sort --if-present format",
+    "test:types": "pnpm -r --no-sort --if-present test:types",
+    "test:unit": "pnpm -r --no-sort --if-present test:unit",
+    "test": "run -p lint test:types test:unit",
+    "commit": "cz",
+    "updateGitHooks": "simple-git-hooks"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@commitlint/config-pnpm-scopes": "^21.2.2",
+    "@commitlint/cz-commitlint": "^21.2.2",
+    "@trigen/oxlint": "^10.1.1",
+    "@trigen/oxlint-config": "^11.0.0",
+    "@trigen/scripts": "^10.1.1",
+    "@types/node": "^26.6.5",
+    "commitizen": "^4.3.2",
+    "del-cli": "^7.0.0",
+    "nano-staged": "^1.0.2",
+    "oxlint": "^1.81.0",
+    "oxlint-tsgolint": "^7.0.0",
+    "simple-git-hooks": "^2.14.0",
+    "typescript": "^7.0.2"
+  }
+}

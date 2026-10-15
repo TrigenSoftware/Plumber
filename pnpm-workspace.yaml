@@ -1,0 +1,27 @@
+packages:
+  - packages/*
+autoInstallPeers: false
+allowBuilds:
+  esbuild: true
+  simple-git-hooks: true
+minimumReleaseAgeExclude:
+  - '@nano_kit/devtools@2.0.0-prerelease.20261014204046'
+  - '@nano_kit/platform-web@2.0.0-prerelease.20261014204046'
+  - '@nano_kit/store@2.0.0-prerelease.20261014204046'
+  - 'agera@2.0.0-prerelease.20261014204046'
+  - 'kida@2.0.0-prerelease.20261014204046'
+  - 'nanoviews@1.0.0-prerelease.20261014205934'
+  - '@nanoviews/storybook@1.0.0-prerelease.20261014205934'
+  - '@nanoviews/storybook-vite@1.0.0-prerelease.20261014205934'
+  - '@nanoviews/testing-library@1.0.0-prerelease.20261014205934'
+  - '@trigen/oxlint-config@11.0.0'
+  - '@trigen/stylelint-config@11.0.0'
+# Until the stable release: an old 2.0.0-snapshot sorts above 2.0.0-prerelease, so the
+# caret ranges of the prerelease packages would resolve kida, agera and the platform
+# package of the devtools to it. The devtools also pin an older nanoviews prerelease
+# exactly, which would put a second nanoviews on the page in development
+overrides:
+  '@nano_kit/platform-web': 2.0.0-prerelease.20261014204046
+  agera: 2.0.0-prerelease.20261014204046
+  kida: 2.0.0-prerelease.20261014204046
+  nanoviews: 1.0.0-prerelease.20261014205934

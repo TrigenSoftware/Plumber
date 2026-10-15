@@ -1,0 +1,65 @@
+name: Tests
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+jobs:
+  types:
+    runs-on: ubuntu-latest
+    name: types
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v7
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .tool-versions
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install
+      - name: Check types
+        run: pnpm test:types
+  lint:
+    runs-on: ubuntu-latest
+    name: lint
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v7
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .tool-versions
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run lint
+        run: pnpm lint
+  unit:
+    runs-on: ubuntu-latest
+    name: unit
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v7
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .tool-versions
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install
+      # The frontend's specs, and the installer's self-test on the runner's Python
+      - name: Run tests
+        run: pnpm test:unit

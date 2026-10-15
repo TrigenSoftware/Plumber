@@ -1,0 +1,19 @@
+.root {
+  border: var(--sizeBorder) solid var(--colorBorder);
+  border-radius: var(--sizeRadiusSm);
+  background: var(--colorSurface);
+  padding: var(--sizeSpaceSm);
+  inline-size: 100%;
+  color: var(--colorText);
+  font: inherit;
+}
+
+.root:disabled {
+  opacity: var(--opacityDisabled);
+  cursor: default;
+}
+
+/* Focus and a press look like hovering, on top of the outline. */
+.root:is(:hover, :focus, :active):not(:disabled) {
+  border-color: var(--colorBrandLight);
+}

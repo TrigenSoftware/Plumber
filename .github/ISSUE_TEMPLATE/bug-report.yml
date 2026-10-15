@@ -1,0 +1,60 @@
+name: "🐛 Bug Report"
+description: "If something isn't working as expected."
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to file a bug report! Please fill out this form as completely as possible.
+
+  - type: checkboxes
+    attributes:
+      label: Would you like to work on a fix?
+      options:
+        - label: Check this if you would like to implement a PR, we are more than happy to help you go through the process.
+
+  - type: dropdown
+    attributes:
+      label: Where did it go wrong?
+      options:
+        - In the browser, while building the .run
+        - On the Steam Deck, while installing the game
+        - On the Steam Deck, while removing the game
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Current and expected behavior
+      description: A clear and concise description of what happened and what you would expect.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: The steps that lead to the problem, and the game it happened with.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: install.log
+      description: For a problem on the Deck, the log the installer wrote. The window that reported the failure shows its path, usually `~/Games/<game>/game/install.log`.
+      render: shell
+
+  - type: input
+    attributes:
+      label: SteamOS version
+      description: Settings → System on the Deck.
+      placeholder: 3.8.28
+
+  - type: input
+    attributes:
+      label: Browser and version
+      description: For a problem in the browser, the one that built the .run.
+
+  - type: textarea
+    attributes:
+      label: Possible solution
+      description: If you have suggestions on a fix for the bug.

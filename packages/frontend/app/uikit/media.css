@@ -1,0 +1,7 @@
+/* Breakpoints as custom media queries. Resolved by lightningcss at build time
+   (see css.lightningcss.drafts.customMedia in vite.config.ts). */
+@custom-media --screenSm (width >= 30rem);
+@custom-media --screenMd (width >= 48rem);
+@custom-media --screenLg (width >= 64rem);
+@custom-media --screenReducedMotion (prefers-reduced-motion: reduce);
+@custom-media --screenForcedColors (forced-colors: active);

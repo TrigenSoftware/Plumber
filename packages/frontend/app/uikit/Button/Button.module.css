@@ -1,0 +1,51 @@
+.root {
+  display: inline-flex;
+  gap: var(--sizeSpaceSm);
+  align-items: center;
+  justify-content: center;
+  border: var(--sizeBorder) solid var(--colorBorder);
+  border-radius: var(--sizeRadiusSm);
+  background: var(--colorSurface);
+  cursor: pointer;
+  padding: var(--sizeSpaceSm) var(--sizeSpace);
+  color: var(--colorText);
+  font: inherit;
+  font-weight: 550;
+}
+
+.root:disabled {
+  opacity: var(--opacityDisabled);
+  cursor: default;
+}
+
+/* Focus from the keyboard looks like the pointer hovering, on top of the outline. */
+.root:is(:hover, :focus-visible):not(:disabled) {
+  background: var(--colorSurfaceHover);
+}
+
+.root:active:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.primary {
+  border-color: var(--colorBrand);
+  background: var(--colorBrand);
+  color: white;
+}
+
+.primary:is(:hover, :focus-visible):not(:disabled) {
+  border-color: var(--colorBrandDark);
+  background: var(--colorBrandDark);
+}
+
+.quiet {
+  border-color: transparent;
+  background: transparent;
+  padding: var(--sizeSpaceXs) var(--sizeSpaceSm);
+  color: var(--colorTextMuted);
+}
+
+.quiet:is(:hover, :focus-visible):not(:disabled) {
+  background: var(--colorSurfaceHover);
+  color: var(--colorText);
+}

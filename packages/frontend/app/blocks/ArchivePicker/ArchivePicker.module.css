@@ -1,0 +1,19 @@
+.root {
+  display: grid;
+  gap: var(--sizeSpaceSm);
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sizeSpaceSm) var(--sizeSpace);
+  align-items: baseline;
+  border: var(--sizeBorder) solid var(--colorBorder);
+  border-radius: var(--sizeRadiusSm);
+  background: var(--colorSurface);
+  padding: var(--sizeSpaceSm) var(--sizeSpace);
+}
+
+.name {
+  font-weight: 550;
+}

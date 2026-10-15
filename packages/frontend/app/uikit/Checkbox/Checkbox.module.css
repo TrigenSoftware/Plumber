@@ -1,0 +1,49 @@
+/* Built on the native input with appearance: none, per the component rules. */
+.root {
+  position: relative;
+  appearance: none;
+  margin: 0;
+  border: var(--sizeBorder) solid var(--colorBorder);
+  border-radius: var(--sizeRadiusSm);
+  background: var(--colorSurface);
+  cursor: pointer;
+  block-size: 1.1em;
+  inline-size: 1.1em;
+}
+
+.root:disabled {
+  opacity: var(--opacityDisabled);
+  cursor: default;
+}
+
+.root:checked {
+  border-color: var(--colorBrand);
+  background: var(--colorBrand);
+}
+
+/* Focus looks like hovering, on top of the outline. */
+.root:is(:hover, :focus):not(:disabled) {
+  border-color: var(--colorBrand);
+}
+
+.root:active:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+/* A ticked box is brand-coloured already: hovering darkens it instead. */
+.root:checked:is(:hover, :focus):not(:disabled) {
+  border-color: var(--colorBrandDark);
+  background: var(--colorBrandDark);
+}
+
+.root:checked::after {
+  position: absolute;
+  inset: 0;
+  transform: translateY(-0.06em) rotate(45deg);
+  margin: auto;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  block-size: 0.55em;
+  inline-size: 0.3em;
+  content: '';
+}

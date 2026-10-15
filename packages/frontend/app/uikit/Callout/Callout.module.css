@@ -1,0 +1,25 @@
+.root {
+  display: flex;
+  gap: var(--sizeSpaceSm);
+  border: var(--sizeBorder) solid var(--colorBorder);
+  border-inline-start-width: 3px;
+  border-radius: var(--sizeRadiusSm);
+  background: var(--colorSurface);
+  padding: var(--sizeSpaceSm) var(--sizeSpace);
+}
+
+.warning {
+  border-inline-start-color: var(--colorWarning);
+}
+
+.note {
+  border-inline-start-color: var(--colorBrand);
+}
+
+.error {
+  border-inline-start-color: var(--colorDanger);
+}
+
+.body {
+  margin: 0;
+}

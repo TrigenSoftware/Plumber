@@ -1,0 +1,25 @@
+@import '~/uikit/media.css';
+
+.root {
+  display: grid;
+  gap: var(--sizeSpace);
+}
+
+.row {
+  display: grid;
+  gap: var(--sizeSpace);
+}
+
+@media (--screenMd) {
+  .row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.code {
+  margin: 0;
+  border-radius: var(--sizeRadiusSm);
+  background: var(--colorSurfaceHover);
+  padding: var(--sizeSpaceSm);
+  overflow-inline: auto;
+}

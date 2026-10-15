@@ -1,0 +1,46 @@
+@import './media.css';
+
+/* Mixins: classes meant to be added to an element alongside its own class.
+   Parameters are CSS Custom Properties with defaults declared on the class. */
+
+.focusOutline {
+  --transitionFocusOutline: outline var(--durationSm) ease;
+  --colorFocusOutline: var(--colorBrandLight);
+  transition: var(--transitionFocusOutline);
+  outline: var(--sizeBorderFocus) solid transparent;
+  outline-offset: var(--sizeBorderFocus);
+
+  &:is(input, textarea, select):focus {
+    outline-color: var(--colorFocusOutline);
+  }
+
+  &:not(:is(input, textarea, select)):focus-visible {
+    outline-color: var(--colorFocusOutline);
+  }
+}
+
+@media (--screenReducedMotion) {
+  .focusOutline {
+    transition: none;
+  }
+}
+
+/* Hides content visually while keeping it available to screen readers. */
+.visuallyHidden {
+  position: absolute;
+  clip-path: inset(50%);
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  block-size: 1px;
+  inline-size: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Cuts a single line of text with an ellipsis. */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

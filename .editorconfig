@@ -1,0 +1,20 @@
+root = true
+
+# editorconfig-checker has its indent-size rule switched off in
+# .editorconfig-checker.json: it wants every left-padding to be a multiple of
+# indent_size, which no aligned continuation line can satisfy - not a wrapped
+# Python argument list, not a comment continued under its own text, not a
+# markdown list item. Indentation in TS and JS is enforced by oxlint instead.
+
+[*]
+indent_style = space
+indent_size = 2
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+end_of_line = lf
+
+# The installer is Python and POSIX sh, where 4 spaces is the convention.
+# Scoped to those two, so recipe.json keeps the 2-space default.
+[packages/installer/*.{py,sh}]
+indent_size = 4

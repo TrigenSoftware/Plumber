@@ -1,0 +1,17 @@
+/* Rows as tall as their content: a field beside a taller one, as in a row of a
+   form, keeps its control at the height of a control rather than stretching it */
+
+.root {
+  display: grid;
+  gap: var(--sizeSpaceXs);
+  align-content: start;
+}
+
+.label {
+  font-weight: 550;
+}
+
+.hint {
+  margin: 0;
+  color: var(--colorTextMuted);
+}

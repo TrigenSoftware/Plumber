@@ -1,0 +1,51 @@
+@import '../media.css';
+
+.root {
+  --selectSizeChevron: 12px; /* the chevron's width; its height follows the SVG's 12:8 */
+
+  appearance: none;
+  border: var(--sizeBorder) solid var(--colorBorder);
+  border-radius: var(--sizeRadiusSm);
+
+  /* The arrow is a chevron of our own, drawn as a background: the native one sits
+     flush with the edge, whatever the padding. A data URI reads no custom
+     properties, so it carries the hex of --colorText, and light-dark() picks the
+     copy for the theme; a browser without light-dark() for images keeps the light
+     one rather than none. The slashes of the namespace are escaped: a // in a
+     multi-line function trips stylelint's comma rule. */
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http:%2F%2Fwww.w3.org%2F2000%2Fsvg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%231b1f26' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='m1 1.5 5 5 5-5'/%3E%3C/svg%3E")
+    no-repeat right var(--sizeSpaceSm) center / var(--selectSizeChevron) auto
+    var(--colorSurface);
+  background-image:
+    light-dark(
+      url("data:image/svg+xml,%3Csvg xmlns='http:%2F%2Fwww.w3.org%2F2000%2Fsvg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%231b1f26' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='m1 1.5 5 5 5-5'/%3E%3C/svg%3E"),
+      url("data:image/svg+xml,%3Csvg xmlns='http:%2F%2Fwww.w3.org%2F2000%2Fsvg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%23e6e9ee' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='m1 1.5 5 5 5-5'/%3E%3C/svg%3E")
+    );
+  cursor: pointer;
+  padding-block: var(--sizeSpaceSm);
+  padding-inline: var(--sizeSpaceSm) calc(var(--sizeSpaceSm) * 2 + var(--selectSizeChevron));
+  inline-size: 100%;
+  color: var(--colorText);
+  font: inherit;
+}
+
+.root:disabled {
+  opacity: var(--opacityDisabled);
+  cursor: default;
+}
+
+/* Focus and a press look like hovering, on top of the outline. */
+.root:is(:hover, :focus, :active):not(:disabled) {
+  border-color: var(--colorBrandLight);
+}
+
+/* Forced colours keep the chevron's fixed colours, which can vanish against the
+   canvas they pick, so the select takes the platform's own arrow there */
+
+@media (--screenForcedColors) {
+  .root {
+    appearance: auto;
+    background-image: none;
+  }
+}

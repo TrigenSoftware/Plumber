@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "~/*": ["./app/*"]
+    }
+  },
+  "include": [
+    "app",
+    ".storybook/*.ts",
+    "*.js",
+    "*.ts"
+  ]
+}

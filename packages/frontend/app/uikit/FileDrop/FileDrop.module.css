@@ -1,0 +1,53 @@
+.root {
+  display: grid;
+  position: relative;
+  gap: var(--sizeSpaceXs);
+  place-items: center;
+  border: 2px dashed var(--colorBorder);
+  border-radius: var(--sizeRadius);
+  background: var(--colorSurface);
+  padding: var(--sizeSpaceXl) var(--sizeSpace);
+  text-align: center;
+  color: var(--colorTextMuted);
+}
+
+/* Over the whole zone and see-through: a click or a drop anywhere on the zone
+   lands on the input, which takes the file the way it takes one from its picker */
+
+.input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  block-size: 100%;
+  inline-size: 100%;
+}
+
+.input:disabled {
+  cursor: default;
+}
+
+.root:has(.input:disabled) {
+  opacity: var(--opacityDisabled);
+}
+
+/* The input draws nothing, so the zone shows its focus. Focus from the
+   keyboard looks like the pointer hovering, on top of the outline. */
+
+.root:has(.input:focus-visible) {
+  outline-color: var(--colorFocusOutline);
+}
+
+.root:has(.input:not(:disabled):is(:hover, :focus-visible)) {
+  border-color: var(--colorBrand);
+  color: var(--colorText);
+}
+
+.root:has(.input:not(:disabled):active) {
+  filter: brightness(0.95);
+}
+
+.title {
+  color: var(--colorText);
+  font-weight: 550;
+}

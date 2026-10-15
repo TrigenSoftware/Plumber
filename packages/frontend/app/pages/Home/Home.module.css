@@ -1,0 +1,30 @@
+@import '~/uikit/media.css';
+
+.root {
+  display: grid;
+  gap: var(--sizeSpaceXl);
+  margin: 0 auto;
+  padding: var(--sizeSpaceLg) var(--sizeSpace) var(--sizeSpaceXl);
+  max-inline-size: var(--sizeContent);
+}
+
+@media (--screenMd) {
+  .root {
+    padding: var(--sizeSpaceXl) var(--sizeSpaceLg);
+  }
+}
+
+.intro {
+  display: grid;
+  gap: var(--sizeSpaceSm);
+}
+
+.section {
+  display: grid;
+  gap: var(--sizeSpace);
+}
+
+.sectionHead {
+  display: grid;
+  gap: var(--sizeSpaceXs);
+}

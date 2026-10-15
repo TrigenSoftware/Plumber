@@ -1,0 +1,39 @@
+.root {
+  display: grid;
+  gap: var(--sizeSpace);
+  box-shadow: var(--shadowCard);
+  border: var(--sizeBorder) solid var(--colorBorder);
+  border-radius: var(--sizeRadius);
+  background: var(--colorSurface);
+  padding: var(--sizeSpaceLg);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sizeSpace);
+  align-items: center;
+}
+
+/* The lead-in sits as far from the steps as they sit from one another: it is
+   the first line of the list, not a section of its own */
+
+.instructions {
+  display: grid;
+  gap: var(--sizeSpaceSm);
+}
+
+.steps {
+  display: grid;
+  gap: var(--sizeSpaceSm);
+  margin: 0;
+  padding-inline-start: var(--sizeSpaceLg);
+}
+
+.key {
+  border: var(--sizeBorder) solid var(--colorBorder);
+  border-radius: var(--sizeRadiusSm);
+  background: var(--colorSurfaceHover);
+  padding: 0 var(--sizeSpaceXs);
+  white-space: nowrap;
+}

@@ -1,0 +1,13 @@
+@import '~/uikit/media.css';
+
+.root {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sizeSpace);
+}
+
+@media (--screenMd) {
+  .root {
+    gap: var(--sizeSpaceLg);
+  }
+}

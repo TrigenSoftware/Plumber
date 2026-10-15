@@ -1,0 +1,133 @@
+.root {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--sizeSpaceXs);
+  align-content: start;
+}
+
+/*
+ * Every frame gets the same box. The aspect ratios here run from 2:3 to 3:1, and
+ * letting each frame follow its own would make one frame four times the height
+ * of its neighbour. The expected size is written inside while it is empty, and
+ * once an image is in there its proportions speak for themselves.
+ */
+
+.frame {
+  display: grid;
+  position: relative;
+
+  /* One row exactly as tall as the frame. An auto row grows to the image's own
+     height, so `height: 100%` on the preview resolved against that and a tall
+     image was cut to its middle instead of contained. */
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  border: 2px dashed var(--colorBorder);
+  border-radius: var(--sizeRadiusSm);
+  background: var(--colorSurface);
+  padding: var(--sizeSpaceXs);
+  block-size: 7rem;
+  overflow: hidden;
+  color: var(--colorTextMuted);
+}
+
+/* Over the whole frame and see-through: a click or a drop anywhere on the frame
+   lands on the input, which takes the file the way it takes one from its picker */
+
+.input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  block-size: 100%;
+  inline-size: 100%;
+}
+
+/* The input draws nothing, so the frame shows its focus. Focus from the
+   keyboard looks like the pointer hovering, on top of the outline. */
+
+.frame:has(.input:focus-visible) {
+  outline-color: var(--colorFocusOutline);
+}
+
+.frame:has(.input:is(:hover, :focus-visible)) {
+  border-color: var(--colorBrand);
+  color: var(--colorText);
+}
+
+.frame:has(.input:active) {
+  filter: brightness(0.95);
+}
+
+.filled {
+  border-style: solid;
+  padding: 0;
+}
+
+.preview {
+  background: repeating-conic-gradient(var(--colorSurfaceHover) 0% 25%, transparent 0% 50%) 50% / 16px 16px;
+  block-size: 100%;
+  inline-size: 100%;
+  object-fit: contain;
+}
+
+/*
+ * The head and the foot are given fixed heights so a row of drops lines up:
+ * one caption wraps to two lines, another does not, and without this the
+ * frames would sit at five different heights.
+ */
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sizeSpaceXs);
+  align-items: start;
+  justify-content: space-between;
+  block-size: 2.5rem;
+
+  /* Clipped with a margin wide enough for the focus outline of the link, which
+     sits flush with the top and the right edge */
+  overflow: clip;
+  overflow-clip-margin: var(--sizeSpaceXs);
+}
+
+.foot {
+  display: flex;
+  gap: var(--sizeSpaceXs);
+  align-items: start;
+  justify-content: space-between;
+  block-size: 2.75rem;
+}
+
+.note {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.problem {
+  color: var(--colorDanger);
+}
+
+/* The remove button is drawn by the kit like every other one, at the size of
+   the note beside it: the size itself comes from the typography class. */
+
+.clear {
+  border: var(--sizeBorder) solid var(--colorBorder);
+  border-radius: var(--sizeRadiusSm);
+  background: var(--colorSurface);
+  cursor: pointer;
+  padding: 0 var(--sizeSpaceSm);
+  line-height: inherit;
+  color: var(--colorText);
+  font-family: inherit;
+}
+
+/* Focus from the keyboard looks like the pointer hovering, on top of the outline. */
+.clear:is(:hover, :focus-visible) {
+  background: var(--colorSurfaceHover);
+}
+
+.clear:active {
+  filter: brightness(0.95);
+}

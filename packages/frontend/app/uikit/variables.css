@@ -1,0 +1,60 @@
+/* Design tokens. Named (type)(Name)(Variant)? where type is
+   font | color | size | duration | opacity | shadow. */
+
+:root {
+  /* fonts */
+  --fontText: system-ui, -apple-system, 'Segoe UI', roboto, sans-serif;
+  --fontMono: ui-monospace, 'SF Mono', 'Cascadia Mono', menlo, monospace;
+
+  /* sizes: type scale */
+  --sizeTextSm: 0.875rem;
+  --sizeText: 1rem;
+  --sizeTextLg: 1.25rem;
+  --sizeTextXl: 1.75rem;
+  --sizeTextXxl: 2.25rem;
+
+  /* sizes: spacing scale */
+  --sizeSpaceXs: 0.25rem;
+  --sizeSpaceSm: 0.5rem;
+  --sizeSpace: 1rem;
+  --sizeSpaceLg: 1.5rem;
+  --sizeSpaceXl: 2.5rem;
+
+  /* sizes: geometry */
+  --sizeBorder: 1px;
+  --sizeBorderFocus: 2px;
+  --sizeRadiusSm: 0.25rem;
+  --sizeRadius: 0.5rem;
+  --sizeContent: 60rem;
+
+  /* durations */
+  --durationSm: 0.15s;
+  --durationMd: 0.3s;
+
+  /* opacity */
+  --opacityDisabled: 0.5;
+  --opacityMuted: 0.7;
+
+  /* colors: each a pair, light first, picked by the color scheme below */
+  --colorBackground: light-dark(oklch(97.3% 0.003 264.5deg), oklch(20.8% 0.009 255.6deg));
+  --colorSurface: light-dark(white, oklch(25.1% 0.015 261.7deg));
+  --colorSurfaceHover: light-dark(oklch(95.5% 0.006 264.5deg), oklch(28.8% 0.016 259.8deg));
+  --colorBorder: light-dark(oklch(88.4% 0.011 261.8deg), oklch(32.7% 0.02 260.6deg));
+  --colorText: light-dark(oklch(23.8% 0.015 261.6deg), oklch(93.3% 0.007 260.7deg));
+  --colorTextMuted: light-dark(oklch(50.1% 0.025 259.2deg), oklch(70.7% 0.024 260.7deg));
+  --colorBrand: light-dark(oklch(58.6% 0.141 250.9deg), oklch(67.4% 0.139 250.2deg));
+  --colorBrandLight: light-dark(oklch(67.4% 0.139 250.2deg), oklch(76.7% 0.1 248deg));
+  --colorBrandDark: light-dark(oklch(47.7% 0.112 250.8deg), oklch(58.6% 0.141 250.9deg));
+  --colorDanger: light-dark(oklch(56.4% 0.166 25.7deg), oklch(65% 0.168 22.9deg));
+  --colorSuccess: light-dark(oklch(57.2% 0.122 147.3deg), oklch(71.2% 0.145 147.3deg));
+  --colorWarning: light-dark(oklch(59.5% 0.114 76deg), oklch(76.7% 0.128 77.6deg));
+
+  /* shadows */
+  --shadowCard:
+    0 1px 2px light-dark(oklch(0% 0 0deg / 0.12), oklch(0% 0 0deg / 0.3)),
+    0 4px 16px light-dark(oklch(0% 0 0deg / 0.08), oklch(0% 0 0deg / 0.2));
+
+  /* The scheme the system asks for, unless a host forces one on the root, as
+     the Storybook toolbar does. Native controls follow it too. */
+  color-scheme: light dark;
+}

@@ -1,0 +1,39 @@
+{
+  "name": "@plumber/installer",
+  "type": "module",
+  "private": true,
+  "version": "1.0.0",
+  "description": "The installer that runs on the Steam Deck, and its scripts as text for the bundle.",
+  "author": "dangreen",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TrigenSoftware/Plumber.git",
+    "directory": "packages/installer"
+  },
+  "bugs": {
+    "url": "https://github.com/TrigenSoftware/Plumber/issues"
+  },
+  "keywords": [
+    "steam-deck",
+    "steam",
+    "installer",
+    "proton"
+  ],
+  "engines": {
+    "node": ">=26"
+  },
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "clear": "del ./src/__pycache__",
+    "lint": "oxlint",
+    "format": "oxlint --fix",
+    "test:types": "tsc --noEmit",
+    "test:unit": "python3 -B src/selftest.py",
+    "test": "run -p lint test:types test:unit"
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "name": "@plumber/frontend",
+  "type": "module",
+  "private": true,
+  "version": "1.0.0",
+  "description": "The web application that builds the .run installer from a zip of the game, in the browser.",
+  "author": "dangreen",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TrigenSoftware/Plumber.git",
+    "directory": "packages/frontend"
+  },
+  "bugs": {
+    "url": "https://github.com/TrigenSoftware/Plumber/issues"
+  },
+  "keywords": [
+    "steam-deck",
+    "steam",
+    "installer",
+    "proton"
+  ],
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "storybook": "storybook dev -p 6006 --no-open",
+    "build:storybook": "storybook build",
+    "clear": "del ./dist ./coverage ./storybook-static",
+    "lint:styles": "stylelint 'app/**/*.css'",
+    "lint:scripts": "oxlint",
+    "lint": "run -p lint:styles lint:scripts",
+    "format:styles": "stylelint 'app/**/*.css' --fix",
+    "format:scripts": "oxlint --fix",
+    "format": "run -p format:styles format:scripts",
+    "test:types": "tsc --noEmit",
+    "test:unit": "vitest run --coverage",
+    "test:unit:watch": "vitest watch",
+    "test": "run -p lint test:types test:unit"
+  },
+  "dependencies": {
+    "@nano_kit/store": "2.0.0-prerelease.20261014204046",
+    "@plumber/installer": "workspace:^",
+    "nanoviews": "1.0.0-prerelease.20261014205934"
+  },
+  "devDependencies": {
+    "@nano_kit/devtools": "2.0.0-prerelease.20261014204046",
+    "@nanoviews/storybook": "1.0.0-prerelease.20261014205934",
+    "@nanoviews/storybook-vite": "1.0.0-prerelease.20261014205934",
+    "@nanoviews/testing-library": "1.0.0-prerelease.20261014205934",
+    "@testing-library/dom": "^10.4.2",
+    "@trigen/stylelint-config": "^11.0.0",
+    "@vitest/coverage-v8": "^5.0.0",
+    "happy-dom": "^20.14.6",
+    "lightningcss": "^1.33.0",
+    "storybook": "^10.6.1",
+    "stylelint": "^17.16.0",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0"
+  }
+}
