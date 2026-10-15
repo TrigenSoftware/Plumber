@@ -74,7 +74,7 @@ function pickFile(name = 'need-for-speed.run') {
   }
 }
 
-// meta.tar.gz unpacked the way GNU gzip on the Deck reads it: the decoder here
+// meta.tar.gz unpacked the way GNU gzip on SteamOS reads it: the decoder here
 // takes the padding and the archive after the gzip stream for junk and errors,
 // but only once it has handed out everything meta holds
 async function unpackMeta(run: Uint8Array) {

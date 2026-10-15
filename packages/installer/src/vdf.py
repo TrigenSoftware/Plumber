@@ -1,6 +1,6 @@
-"""VDF parsers for deck-bundler. Both formats, reading and writing.
+"""VDF parsers for Plumber. Both formats, reading and writing.
 
-Written from scratch because python-vdf is not installed on the Deck and
+Written from scratch because python-vdf is not installed on SteamOS and
 pulling a dependency into the bundle is not an option.
 """
 

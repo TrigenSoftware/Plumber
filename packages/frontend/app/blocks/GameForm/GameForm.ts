@@ -54,7 +54,7 @@ function candidateLabel(item: ExeCandidate) {
 /**
  * The whole point of reading the archive is one line: the path to the exe. It
  * is never typed by hand - a path with one character wrong would only surface
- * on the Deck, where there is nothing to debug it with (7.1).
+ * on SteamOS, where there is nothing to debug it with (7.1).
  */
 export const GameForm = component$(({
   class: className,

@@ -135,7 +135,7 @@ describe('services', () => {
       it('should carry the six modules the uninstaller needs', async () => {
         const names = listTar(await gunzip(await packMeta(RECIPE, [])))
 
-        // install.py copies these into <game-dir>/.deck-bundler/ so the game
+        // install.py copies these into <game-dir>/.plumber/ so the game
         // can be removed without keeping the original .run around (5.4).
         for (const module of [
           './install.py',

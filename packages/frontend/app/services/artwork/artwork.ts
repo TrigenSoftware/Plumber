@@ -61,7 +61,7 @@ export function steamGridDbUrl(section: string, term: string, dimensions?: strin
 }
 
 /**
- * The formats the installer on the Deck copies into `grid/`. Anything else -
+ * The formats the installer copies into `grid/`. Anything else -
  * a WebP, a GIF - would travel inside meta and then be ignored there, leaving
  * the slot filled here and the library empty.
  */
@@ -101,7 +101,7 @@ export async function inspectArt(spec: ArtSlotSpec, file: File): Promise<ArtItem
 
   if (!ART_TYPES.includes(file.type.toLowerCase())) {
     error = `${file.name} is neither a PNG nor a JPEG. The installer lays out `
-      + 'only those two, so anything else would vanish on the Deck.'
+      + 'only those two, so anything else would never reach the library.'
   }
 
   // The logo is laid over the hero. Without an alpha channel that is a white box.

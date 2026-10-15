@@ -59,7 +59,7 @@ export interface ModSigns {
  * Other signs of mods around the exe.
  *
  * @returns Counts worth naming in the install log, the only way to tell from
- * someone else's Deck that the mods did not load (7.3.1).
+ * someone else's SteamOS that the mods did not load (7.3.1).
  */
 export function detectModSigns(entries: ZipEntry[], exePath: string): ModSigns {
   const dir = directoryOf(exePath)

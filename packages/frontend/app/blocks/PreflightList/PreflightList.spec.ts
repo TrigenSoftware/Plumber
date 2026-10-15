@@ -27,7 +27,7 @@ import styles from './PreflightList.module.css'
 const TONES = ['warning', 'note', 'error'] as const
 const LOGO_JPEG = 'A logo must have transparency, and a JPEG has none. Use a PNG.'
 const NOT_PNG = 'cover.webp is neither a PNG nor a JPEG. The installer lays out '
-  + 'only those two, so anything else would vanish on the Deck.'
+  + 'only those two, so anything else would never reach the library.'
 const UNINSTALLER = 'The chosen exe looks like an installer or a utility rather than the game. '
   + 'That may well be right - just worth a second look.'
 const NOT_DECODED = 'hero.png could not be read as an image.'

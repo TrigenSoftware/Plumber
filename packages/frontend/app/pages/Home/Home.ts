@@ -82,15 +82,15 @@ export const Home = component$(({
         p({
           class: `${typography.text} ${typography.muted}`
         })(
-          'Turns a zipped Windows game into one installer file for the Steam Deck: run it '
-          + 'once, and the game is in the Steam library with its artwork and Proton set up. '
+          'Turns a zipped Windows game into a single .run installer for SteamOS: run it once, '
+          + 'and the game is in the Steam library with its artwork and Proton set up. '
           + 'Nothing is uploaded anywhere: the file is assembled in this browser and written '
           + 'straight to disk.'
         ),
         p({
           class: `${typography.text} ${typography.muted}`
         })(
-          'Plumber is open source: everything the installer does on your Deck is in ',
+          'Plumber is open source: everything the installer does on SteamOS is in ',
           // A tab of its own: leaving the page would drop the archive and the
           // artwork already in the form
           a({

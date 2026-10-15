@@ -37,8 +37,8 @@ PARTIAL = 4
 PROGRESS_REF = None
 QDBUS = shutil.which('qdbus6') or shutil.which('qdbus')
 # True while the client is down because of us. Every way out of main(), an
-# exception included, brings it back: left down, Steam looks to the person at
-# the Deck as if the installer broke it.
+# exception included, brings it back: left down, Steam looks to the player as
+# if the installer broke it.
 STEAM_STOPPED = False
 
 
@@ -142,13 +142,13 @@ def main(argv=None):
     global PROGRESS_REF
     PROGRESS_REF = a.progress_ref or None
 
-    log('deck-bundler %s log' % ('uninstall' if a.uninstall else 'install'))
+    log('Plumber %s log' % ('uninstall' if a.uninstall else 'install'))
     log('%s, %s\n' % (time.strftime('%Y-%m-%d %H:%M:%S'), system_line()))
     try:
         return run(a)
     except Exception:
-        # Whatever it is, the log has to name it: the log is all the person at
-        # the Deck has to send back
+        # Whatever it is, the log has to name it: the log is all the player
+        # has to send back
         log('\nUNEXPECTED ERROR')
         log(traceback.format_exc().rstrip())
         return 1
@@ -376,7 +376,7 @@ def install_uninstaller(game_dir, recipe_path, log=print):
     shows up outside.
     """
     here = os.path.dirname(os.path.abspath(__file__))
-    lib = os.path.join(game_dir, '.deck-bundler')
+    lib = os.path.join(game_dir, '.plumber')
     os.makedirs(lib, exist_ok=True)
 
     # copyfile, not copy2: meta comes with zero mtimes (see install_art), and
@@ -430,7 +430,7 @@ def do_uninstall(uid, appid, exe_quoted, a):
         if saves:
             log('  WARNING: %d files in SAVES/ inside the game folder - they '
                 'will be deleted with it' % len(saves))
-        for extra in (os.path.join(gd, '.deck-bundler'),):
+        for extra in (os.path.join(gd, '.plumber'),):
             if os.path.isdir(extra):
                 shutil.rmtree(extra, ignore_errors=True)
         for path, what in ((gd, 'game folder'), (pfx, 'prefix')):

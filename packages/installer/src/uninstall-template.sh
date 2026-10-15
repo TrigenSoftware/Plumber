@@ -1,5 +1,5 @@
 #!/bin/sh
-# Removes a game installed by deck-bundler.
+# Removes a game installed by Plumber.
 #
 # Put into the game folder at install time, so the game can be removed
 # without keeping a four-gigabyte installer around. The working modules sit
@@ -7,7 +7,7 @@
 set -eu
 
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-LIB="$HERE/.deck-bundler"
+LIB="$HERE/.plumber"
 RECIPE="$LIB/recipe.json"
 
 have() { command -v "$1" >/dev/null 2>&1; }

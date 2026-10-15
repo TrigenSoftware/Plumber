@@ -3,7 +3,7 @@
   "type": "module",
   "private": true,
   "version": "1.0.0",
-  "description": "The web application that builds the .run installer from a zip of the game, in the browser.",
+  "description": "The web application that builds the .run installer.",
   "author": "dangreen",
   "license": "MIT",
   "repository": {
@@ -15,7 +15,7 @@
     "url": "https://github.com/TrigenSoftware/Plumber/issues"
   },
   "keywords": [
-    "steam-deck",
+    "steamos",
     "steam",
     "installer",
     "proton"

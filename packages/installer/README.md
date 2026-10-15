@@ -1,6 +1,6 @@
 # installer
 
-What runs on the Deck itself: unpacks the game, adds it to Steam with its artwork and Proton set up, and can remove it again.
+The installer that runs on SteamOS: unpacks the game, adds it to Steam with its artwork and Proton set up, and can remove it again.
 
 The reasoning behind the decisions is in **[`SPEC.md`](../../SPEC.md)** at the root of the repository. The spec comes first: the code follows it, and it keeps everything found out by trial on a live machine. A fact the spec marks as verified was taken from a real Deck; `[?]` marks an unverified guess.
 
@@ -57,14 +57,14 @@ Uninstall with what the installer put next to the game:
 
 ```sh
 <game-dir>/uninstall.run
-python3 <game-dir>/.deck-bundler/install.py --recipe <game-dir>/.deck-bundler/recipe.json \
+python3 <game-dir>/.plumber/install.py --recipe <game-dir>/.plumber/recipe.json \
     --game-dir <game-dir> --uninstall [--purge]
 ```
 
 Check what was installed:
 
 ```sh
-python3 src/check-install.py <game-dir>/.deck-bundler/recipe.json <game-dir> <proton_tool> [art-dir]
+python3 src/check-install.py <game-dir>/.plumber/recipe.json <game-dir> <proton_tool> [art-dir]
 ```
 
 ## Three things that are easy to trip over

@@ -149,7 +149,7 @@ fi
 # ----------------------------------------------- greeting and questions
 if [ -z "$DRYRUN" ] && [ -n "$GUI" ] && have kdialog; then
     kdialog --title "Install game" --icon dialog-information \
-        --yesno "Install <b>$NAME</b> on this Steam Deck?
+        --yesno "Install <b>$NAME</b>?
 
 The game will be unpacked to disk and added to your Steam
 library with artwork and Proton already set up.

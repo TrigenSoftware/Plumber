@@ -3,7 +3,7 @@
   "type": "module",
   "private": true,
   "version": "1.0.0",
-  "description": "The installer that runs on the Steam Deck, and its scripts as text for the bundle.",
+  "description": "The installer that runs on SteamOS: unpacks the game, adds it to Steam with its artwork and Proton set up, and can remove it again.",
   "author": "dangreen",
   "license": "MIT",
   "repository": {
@@ -15,7 +15,7 @@
     "url": "https://github.com/TrigenSoftware/Plumber/issues"
   },
   "keywords": [
-    "steam-deck",
+    "steamos",
     "steam",
     "installer",
     "proton"

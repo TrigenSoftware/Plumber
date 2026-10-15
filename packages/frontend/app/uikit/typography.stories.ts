@@ -28,7 +28,7 @@ const SAMPLES = [
   },
   {
     classes: ['text', 'muted'],
-    text: 'Turns a zipped Windows game into one installer file for the Steam Deck.'
+    text: 'Turns a zipped Windows game into a single .run installer for SteamOS.'
   },
   {
     classes: ['small'],

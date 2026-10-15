@@ -19,7 +19,7 @@ export default defineConfig({
       }
     },
     {
-      // The keys of recipe.json are the format the installer on the Deck reads.
+      // The keys of recipe.json are the format the installer reads.
       // They are its names, not ours, so they stay snake_case.
       files: ['app/services/recipe/*'],
       rules: {

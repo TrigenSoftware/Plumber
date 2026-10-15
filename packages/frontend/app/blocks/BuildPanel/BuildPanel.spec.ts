@@ -204,7 +204,7 @@ describe('blocks', () => {
       fireEvent.click(buildButton())
       await waitTasks(build.$phase)
 
-      expect(screen.getByText('nfs.run is ready. Copy it to the Steam Deck, then, in Desktop Mode:')).toBeDefined()
+      expect(screen.getByText('nfs.run is ready. Copy it to SteamOS, then, in Desktop Mode:')).toBeDefined()
       expect(within(screen.getByRole('list')).getAllByRole('listitem').map(step => step.textContent)).toEqual(STEPS)
     })
 
@@ -225,7 +225,7 @@ describe('blocks', () => {
 
       build.$phase('done')
 
-      expect(screen.getByText('Copy it to the Steam Deck, then, in Desktop Mode:')).toBeDefined()
+      expect(screen.getByText('Copy it to SteamOS, then, in Desktop Mode:')).toBeDefined()
     })
 
     it('should not explain anything before the installer is written', async () => {

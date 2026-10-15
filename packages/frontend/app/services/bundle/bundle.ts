@@ -36,7 +36,7 @@ const MODE_REGULAR = 0o644
 export function buildHeader(metaBlocks: number) {
   const script = [
     '#!/bin/sh',
-    '# deck-bundler self-extracting installer.',
+    '# Plumber self-extracting installer.',
     `# [0..${BLOCK_SIZE - 1}] this script | [${BLOCK_SIZE}..] meta.tar.gz (${metaBlocks} blocks) | then the archive`,
     'set -eu',
     'SELF=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/$(basename -- "$0")',

@@ -22,7 +22,7 @@ BLOCK = 4096
 
 
 class UnpackError(Exception):
-    """A failure to tell the person at the Deck about, in words they can act on."""
+    """A failure to tell the player about, in words they can act on."""
 
 
 def human(size):

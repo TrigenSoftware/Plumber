@@ -12,7 +12,7 @@ import type {
 const SLUG_MAX = 40
 
 /**
- * @returns A folder name for the Deck, safe on a Linux filesystem.
+ * @returns A folder name, safe on a Linux filesystem.
  */
 export function slugify(name: string) {
   return name
@@ -70,7 +70,7 @@ export function guessTitle(fileName: string, zip: Pick<ZipInfo, 'entries' | 'com
   return tidyTitle(folderTitle(zip.commonPrefix) ?? unityTitle(zip.entries) ?? fileName.replace(/\.zip$/i, ''))
 }
 
-/** @returns The recipe exactly as the installer on the Deck reads it. */
+/** @returns The recipe exactly as the installer reads it. */
 export function buildRecipe(input: RecipeInput): Recipe {
   return {
     name: input.name,

@@ -9,7 +9,7 @@ import configSurgeryPy from './src/config_surgery.py?raw'
 import checkInstallPy from './src/check-install.py?raw'
 
 /**
- * The installer that runs on the Deck, as text for the bundle to pack into
+ * The installer that runs on SteamOS, as text for the bundle to pack into
  * meta. These are the same files stages 1 and 2 were verified with; the build
  * only wraps them, it never rewrites them. They come in through `?raw`, so it
  * takes a bundler that reads it - Vite, in the frontend.
@@ -19,8 +19,8 @@ import checkInstallPy from './src/check-install.py?raw'
  * under us should break the build rather than the installer.
  *
  * `install.py` copies the six modules into the game folder for the uninstaller
- * (5.4), and `check-install.py` is the acceptance run - on someone else's Deck
- * it is the only way to tell whether the result matches the recipe.
+ * (5.4), and `check-install.py` is the acceptance run - on someone else's
+ * SteamOS it is the only way to tell whether the result matches the recipe.
  */
 export const INSTALLER_FILES = [
   {

@@ -68,8 +68,8 @@ const Instructions = component$(({ savedAs }: InstructionsProps) => (
     })(
       when(
         savedAs,
-        text`${savedAs} is ready. Copy it to the Steam Deck, then, in Desktop Mode:`,
-        'Copy it to the Steam Deck, then, in Desktop Mode:'
+        text`${savedAs} is ready. Copy it to SteamOS, then, in Desktop Mode:`,
+        'Copy it to SteamOS, then, in Desktop Mode:'
       )
     ),
     ol({

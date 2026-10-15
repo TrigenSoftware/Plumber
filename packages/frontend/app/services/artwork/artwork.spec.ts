@@ -29,7 +29,7 @@ describe('services', () => {
     describe('ART_TYPES', () => {
       it('should offer only what the installer copies into grid/', () => {
         // steam_install.install_art looks for .png, .jpg and .jpeg and nothing
-        // else, so anything wider here would vanish on the Deck (7.5).
+        // else, so anything wider here would never reach the library (7.5).
         expect(ART_TYPES).toEqual(['image/png', 'image/jpeg'])
       })
     })

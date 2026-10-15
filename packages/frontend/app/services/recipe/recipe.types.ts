@@ -2,7 +2,7 @@
 export type PrefixArch = 'win32' | 'win64'
 
 /**
- * What the installer on the Deck reads. Also enough to rebuild the bundle
+ * What the installer reads. Also enough to rebuild the bundle
  * later (7.7), which is why the generator stamps itself into it.
  */
 export interface Recipe {
@@ -13,7 +13,7 @@ export interface Recipe {
   user_data: string[]
   /**
    * Wrapper DLLs to override. Whether one is there depends on the archive, so
-   * by 2.8 this is settled here rather than on the Deck. An empty list is a
+   * by 2.8 this is settled here rather than on SteamOS. An empty list is a
    * decision - the human unticked the box - and the installer honours it.
    */
   dll_overrides: string[]

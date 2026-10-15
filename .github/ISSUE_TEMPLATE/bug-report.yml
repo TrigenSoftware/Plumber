@@ -18,8 +18,8 @@ body:
       label: Where did it go wrong?
       options:
         - In the browser, while building the .run
-        - On the Steam Deck, while installing the game
-        - On the Steam Deck, while removing the game
+        - On SteamOS, while installing the game
+        - On SteamOS, while removing the game
     validations:
       required: true
 
@@ -40,13 +40,13 @@ body:
   - type: textarea
     attributes:
       label: install.log
-      description: For a problem on the Deck, the log the installer wrote. The window that reported the failure shows its path, usually `~/Games/<game>/game/install.log`.
+      description: For a problem on SteamOS, the log the installer wrote. The window that reported the failure shows its path, usually `~/Games/<game>/game/install.log`.
       render: shell
 
   - type: input
     attributes:
       label: SteamOS version
-      description: Settings → System on the Deck.
+      description: Settings → System in SteamOS.
       placeholder: 3.8.28
 
   - type: input

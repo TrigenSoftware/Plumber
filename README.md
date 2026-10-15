@@ -1,14 +1,14 @@
 # Plumber
 
-Turns a Windows game into a single `.run` installer for SteamOS: run it once on a Steam Deck, and the game is in the Steam library with its artwork and Proton set up.
+Turns a zipped Windows game into a single `.run` installer for SteamOS: run it once, and the game is in the Steam library with its artwork and Proton set up.
 
 Why everything is the way it is: [`SPEC.md`](SPEC.md).
 
 ## Layout
 
 - `SPEC.md`: the specification
-- `packages/installer` (`@plumber/installer`): the installer that runs on the Deck, see its [README](packages/installer/README.md)
-- `packages/frontend` (`@plumber/frontend`): the web application that builds the `.run`
+- `packages/installer` (`@plumber/installer`): the installer that runs on SteamOS, see its [README](packages/installer/README.md)
+- `packages/frontend` (`@plumber/frontend`): the web application that builds the `.run` installer
 
 `packages/frontend/app/` follows Flat Layers Design:
 

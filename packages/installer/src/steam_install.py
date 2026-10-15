@@ -33,8 +33,8 @@ class AmbiguousUser(RuntimeError):
     """More than one account and nothing that picks between them.
 
     Step 5 of 5.1.1 is "ask" for a reason: guessing here installs the game
-    into somebody else's library on a shared Deck, and the person who ran the
-    installer sees nothing at all.
+    into somebody else's library when the client is shared, and the person who
+    ran the installer sees nothing at all.
     """
 
     def __init__(self, candidates):
@@ -182,7 +182,7 @@ def library_dirs():
 
     Proton is installed the way any app is, into a library of the client's
     choosing, and that can be the SD card. Looking at the internal one alone
-    offers no Proton on such a Deck, and the game goes in without one.
+    offers no Proton then, and the game goes in without one.
     """
     roots = [STEAM_ROOT]
     for path in (os.path.join(STEAM_ROOT, 'steamapps', 'libraryfolders.vdf'),

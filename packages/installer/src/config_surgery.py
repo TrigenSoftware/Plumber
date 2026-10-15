@@ -74,7 +74,7 @@ def _locate_ctm(text):
 def _create_ctm(text):
     """Adds an empty CompatToolMapping block to Software/Valve/Steam.
 
-    A Deck that has never had a compatibility tool set has no such block, and
+    If no compatibility tool has ever been set, there is no such block, and
     the install would otherwise die here - after the client is already down and
     the shortcut already written. Inserted the same way an entry is: in front of
     the closing brace, indented one level in, everything else untouched.

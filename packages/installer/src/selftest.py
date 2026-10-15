@@ -241,7 +241,7 @@ def test_mapping_added_to_existing_block():
 
 @case
 def test_mapping_block_is_created_when_absent():
-    """config.vdf: a Deck that never set a compat tool gets the block made"""
+    """config.vdf: with no compat tool ever set, the block gets made"""
     # Before this, set_mapping raised - and it raised after the client was
     # already down and the shortcut already written, leaving a half-done
     # install. Section 5.2 step 2 says create it.
@@ -516,8 +516,9 @@ def test_user_from_autologin_then_timestamp():
 @case
 def test_ambiguous_user_is_asked_about():
     """user: with nothing to decide on, ask rather than guess"""
-    # Guessing installs the game into somebody else's library on a shared Deck,
-    # and the person who ran the installer sees nothing (5.1.1 step 5).
+    # Guessing installs the game into somebody else's library when the
+    # client is shared, and the person who ran the installer sees nothing
+    # (5.1.1 step 5).
     with tempfile.TemporaryDirectory() as tmp:
         fake_steam(tmp, users=('12345678', '11112222'))
         try:
@@ -575,8 +576,8 @@ def test_official_tool_name():
 @case
 def test_proton_in_another_library():
     """proton: a version installed on the SD card is offered too"""
-    # Looking at the internal library alone finds nothing on such a Deck, and
-    # the game goes in without Proton.
+    # Looking at the internal library alone finds nothing then, and the game
+    # goes in without Proton.
     with tempfile.TemporaryDirectory() as tmp:
         root = fake_steam(tmp)
         card = os.path.join(tmp, 'card')

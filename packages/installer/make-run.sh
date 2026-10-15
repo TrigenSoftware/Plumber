@@ -30,7 +30,7 @@ BLOCKS=$(( (MS + BS - 1) / BS ))
 # buildHeader writes in the browser.
 cat > "$TMP/header" <<HEOF
 #!/bin/sh
-# deck-bundler self-extracting installer.
+# Plumber self-extracting installer.
 # [0..8191] this script | [8192..] meta.tar.gz ($BLOCKS blocks) | then the archive
 set -eu
 SELF=\$(CDPATH= cd -- "\$(dirname -- "\$0")" && pwd)/\$(basename -- "\$0")

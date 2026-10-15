@@ -120,7 +120,7 @@ describe('services', () => {
         expect(recipe.dll_overrides).toEqual([])
       })
 
-      it('should use the key names the installer on the Deck reads', () => {
+      it('should use the key names the installer reads', () => {
         expect(Object.keys(buildRecipe(INPUT))).toEqual([
           'name',
           'slug',

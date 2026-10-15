@@ -1,4 +1,4 @@
-# Deck bundler: specification
+# Plumber: specification
 
 A draft for discussion. Items are marked: `[MVP]` goes into the first version, `[v2]` comes later, `[?]` is open and needs discussing.
 
@@ -10,7 +10,7 @@ The findings of the field checks are written in where they belong and marked "**
 
 ## 1. The task
 
-A web application that turns a folder with an installed Windows game into a single self-extracting `.run` file. The file is moved to a Steam Deck and run once, and after that the game is in the Steam library with its artwork and Proton set up.
+A web application that turns a zipped Windows game into a single `.run` installer for SteamOS: run it once, and the game is in the Steam library with its artwork and Proton set up.
 
 **The target platform is SteamOS only.** Not "Linux in general". The assumption is used actively: the Steam paths are known, Proton is known to be installed, and the client is known to be native rather than a Flatpak.
 
@@ -18,8 +18,8 @@ A web application that turns a folder with an installed Windows game into a sing
 
 1. A person on Windows (or a Mac) installs the game and zips its folder
 2. Opens the web application, drops the zip and the artwork into it, fills in the form
-3. Downloads the `.run` and moves it to the Deck by any means
-4. On the Deck: right click → Properties → Permissions → **Is executable**, then a double click, and that is it
+3. Downloads the `.run` and moves it to SteamOS by any means
+4. On SteamOS: right click → Properties → Permissions → **Is executable**, then a double click, and that is it
 
 The fourth step used to read "`chmod +x`, run", which put a terminal into the user's very first action. For someone who is not a programmer that is a failed scenario, not a detail: **everything is done with the mouse, and the application has to show exactly how**, with a picture rather than a command line.
 
@@ -38,7 +38,7 @@ v1 aims at Desktop Mode. The scenario "downloaded with Chrome in Gaming Mode, ta
 
 - **Chrome cannot execute files.** On Linux it has no "run" action, only "open with the registered handler", and a `.run` has no handler
 - **There is nothing to set the execute bit with.** Gaming Mode has neither a file manager nor a terminal
-- **Chrome on the Deck is a Flatpak.** Downloads land in its sandbox, from where `setup.sh` reaches neither `~/Games` nor the Steam configs
+- **Chrome on SteamOS is a Flatpak.** Downloads land in its sandbox, from where `setup.sh` reaches neither `~/Games` nor the Steam configs
 
 Launchers like Battle.net work in Gaming Mode not in spite of this but because of the mechanism: Steam starts them as shortcuts. Everything Steam starts lives fine under gamescope; anything that is not a shortcut has nothing to start it.
 
@@ -62,7 +62,7 @@ A shell script with an archive glued on. The alternatives were dropped:
 - **A Flatpak bundle**: the sandbox does not reach the Steam configs, and the build is long
 - **An AppImage**: squashfs is read-only, so the game has to be unpacked outside anyway
 
-On the Deck the work needs only `sh` and `tar`. Both are there, the read-only rootfs does not get in the way, and everything is written into `~`.
+On SteamOS the work needs only `sh` and `tar`. Both are there, the read-only rootfs does not get in the way, and everything is written into `~`.
 
 ### 2.2 Steam is shut down, and we write the VDFs ourselves
 
@@ -80,12 +80,12 @@ What goes away with this decision: `launch.sh` reproducing the call into the sni
 
 **What it costs:**
 
-- **Two parsers.** `shortcuts.vdf` is binary, `config.vdf` is text. The Deck has `python3`, but `python-vdf` is not installed, so the implementation goes into the bundle. Around 200-300 lines
+- **Two parsers.** `shortcuts.vdf` is binary, `config.vdf` is text. SteamOS has `python3`, but `python-vdf` is not installed, so the implementation goes into the bundle. Around 200-300 lines
 - **The risk of breaking `config.vdf`.** It is not a list of shortcuts: it holds every client setting, and a sloppy parser breaks Steam completely. A backup before writing is mandatory, and so is **a surgical edit**: find or create the `CompatToolMapping` block, write one entry, touch nothing else. No "parse it and serialize it back"
 - **Orchestration.** `steam -shutdown`, polling for the process with a timeout, starting it again. Plus a warning: a download in progress will be interrupted
 - **The write can be undone by the client.** Found on a live Deck, and it cost five shortcuts: see 5.1.0. This is not the risk of a broken file, which a careful parser prevents, but the risk of losing the edit, and it needs a separate verification step
 
-The trade is deliberate: twenty lines of templates plus three unverified hypotheses became three hundred lines of straightforward code with no hypotheses. Code is written once and checked on the spot; hypotheses fall apart on someone else's Deck, where there is nothing to debug with.
+The trade is deliberate: twenty lines of templates plus three unverified hypotheses became three hundred lines of straightforward code with no hypotheses. Code is written once and checked on the spot; hypotheses fall apart on someone else's SteamOS, where there is nothing to debug with.
 
 ### 2.3 The shortcut points at the `.exe`
 
@@ -148,7 +148,7 @@ A request to `api/v2/search/autocomplete/` from a foreign origin fails at the pr
 Workarounds that were dropped:
 
 - **our own proxy** (a Cloudflare Worker): it solves both CORS and the key, but it breaks "there is no backend" from 1.2, and the owner of the key answers for any abuse
-- **downloading in `setup.sh`** with curl: CORS has nothing to do with it, but the Deck needs internet during the install, and there is no preview before the build
+- **downloading in `setup.sh`** with curl: CORS has nothing to do with it, but SteamOS needs internet during the install, and there is no preview before the build
 
 Alternative services were dropped too. We need four specific Steam formats, including the hero and a transparent logo. IGDB, RAWG and TheGamesDB are databases about games where the cover is a by-product: one picture in arbitrary proportions, and none of them has a hero or a logo. Three sources with three kinds of authorization for a worse result is a bad trade.
 
@@ -167,7 +167,7 @@ The criterion: **what depends on the archive is settled at packing time; what de
 | Proton version | install |
 | Steam user | install (5.1.1) |
 
-The Proton version did not land here right away. It cannot be pinned in the generator: if the chosen version is missing on the target Deck, the bundle installs and silently breaks. On the spot, on the other hand, we can list what is installed (`steamapps/common/Proton*` plus `compatibilitytools.d/*`) and show what is really available.
+The Proton version did not land here right away. It cannot be pinned in the generator: if the chosen version is missing on the target SteamOS, the bundle installs and silently breaks. On the spot, on the other hand, we can list what is installed (`steamapps/common/Proton*` plus `compatibilitytools.d/*`) and show what is really available.
 
 **The dialogs were tested by a live person, and that turned up three misses.** Until then every run passed the path and the Proton version through environment variables, and `kdialog` was never reached: the automated tests went around exactly the code a person sees first. The lesson is general: **a loophole that is convenient for an automated test leads the check past the most fragile place**; the interactive branch has to be run by hand.
 
@@ -195,7 +195,7 @@ The rule: **a GUI is shown only when the questions were asked through a GUI.** I
 
 Done: `kdialog --progressbar` returns a DBus reference, and `qdbus6` moves the bar through it. Python counts the unpacking percentage by bytes rather than by files: otherwise a 4 GB file would hold the bar still for a minute. The percentage then goes to the Python side through `--progress-ref`, and it labels its own stages: closing Steam, saving the backups, adding to the library, the artwork, starting it again, verifying. Without a GUI all of this is silently skipped: the install does not depend on the progress bar.
 
-**What asks the questions: `kdialog`.** Desktop Mode on the Deck is KDE Plasma, and kdialog comes from KDE and draws native Qt windows. `--getexistingdirectory` settles the SD card question neatly: there is no need to detect `/run/media/deck/<label>` and know the partition label, the person just picks it in the file dialog. The same tool gives `--progressbar` through DBus: unpacking 8 GB takes minutes, and a silent script looks hung.
+**What asks the questions: `kdialog`.** Desktop Mode on SteamOS is KDE Plasma, and kdialog comes from KDE and draws native Qt windows. `--getexistingdirectory` settles the SD card question neatly: there is no need to detect `/run/media/deck/<label>` and know the partition label, the person just picks it in the file dialog. The same tool gives `--progressbar` through DBus: unpacking 8 GB takes minutes, and a silent script looks hung.
 
 The fallback chain: `kdialog` → `zenity` (unlikely to be there, the system is KDE) → an interactive `read` in a terminal → defaults with no questions, everything into the log.
 
@@ -232,7 +232,7 @@ The consequences: no temporary copy the size of the game, no "archive plus unpac
 
 **But only below 4 GiB.** A larger archive is a Zip64 one, and with a prefix `bsdtar` gives up: it looks for the Zip64 end of central directory record at the address from the locator, and the prefix has shifted that address. The result is `Damaged Zip archive` and not a single file, and with a small Zip64 (more than 65535 entries) it is worse still: exit code 0 and not a single file either. libarchive's master behaves the same way (`read_zip64_eocd`). Caught on a live Deck with the very first game over 4 GiB: `unpacking failed (exit 1): bsdtar: Error exit delayed from previous errors.` **Verified** with `bsdtar` 3.7.7: a 4.3 GB `.run` cannot be read, while the same zip without the prefix can. `unzip` gets such an archive out, but with `error: End-of-centdir-64 signature not where expected`.
 
-So Python's `zipfile` does the unpacking (`unpack.py`): it finds the end records from the end of the file and works out the shift itself, Zip64 included. The offset of the archive is still written down nowhere. The price is speed: on 512 MB of synthetic data `zipfile` is one and a half times slower (3.1 s against 2.1), but on the Deck the disk is the limit anyway. It also brought a free space check before the first byte and clear messages instead of the last line of `bsdtar`.
+So Python's `zipfile` does the unpacking (`unpack.py`): it finds the end records from the end of the file and works out the shift itself, Zip64 included. The offset of the archive is still written down nowhere. The price is speed: on 512 MB of synthetic data `zipfile` is one and a half times slower (3.1 s against 2.1), but on the test Deck 8.2 GB still unpacked in 57 s (9). It also brought a free space check before the first byte and clear messages instead of the last line of `bsdtar`.
 
 **2. The size of meta is not fixed.** 64 KB was planned for "scripts, artwork, recipe.json", and a set of artwork weighs **5.3 MB**: portrait 1.2, hero 2.1, icon 1.0, wide 0.8, logo 0.3. Off by two orders of magnitude.
 
@@ -276,7 +276,7 @@ meta.tar.gz
     └── icon.png        1024×1024
 ```
 
-The first six modules are needed not only for the install: `install.py` copies them into `<game-dir>/.deck-bundler/`, so that removing the game works without the original `.run` (5.4). `check-install.py` is not required for the install, but on someone else's Deck it is the only way to check the result: there is no debugging loop there.
+The first six modules are needed not only for the install: `install.py` copies them into `<game-dir>/.plumber/`, so that removing the game works without the original `.run` (5.4). `check-install.py` is not required for the install, but on someone else's SteamOS it is the only way to check the result: there is no debugging loop there.
 
 `make-run.sh` stays out of the bundle: it builds a `.run` rather than installing one. The scoring does not travel either: the logic of 7.2.1 lives in the generator, where the list of exes has already been read from the central directory.
 
@@ -284,7 +284,7 @@ The field-check scripts of stage 1 (`recon.py`, `set-field.py`) and a separate c
 
 There are no templates any more: `launch.sh` and `.desktop` are not generated (2.2). There is no registry (2.6).
 
-`vdf.py` is our own, not a library: the Deck has `python3` but not `python-vdf`. Its requirements are in 5.2.
+`vdf.py` is our own, not a library: SteamOS has `python3` but not `python-vdf`. Its requirements are in 5.2.
 
 `recipe.json` is always included:
 
@@ -401,13 +401,13 @@ This section was rewritten after the field checks: **both mechanisms it used to 
 
 Two working clues turned up instead. The order, from the surest down:
 
-1. **The only folder** in `userdata/`. On a Deck this is by far the common case, since the console is personal. The check is trivial and does not depend on the format of any field
+1. **The only folder** in `userdata/`. This is by far the common case: one person, one account. The check is trivial and does not depend on the format of any field
 2. **`AutoLogin` = `"1"`** in `loginusers.vdf`. The key of the entry is the SteamID64, and the folder number is that minus `76561197960265728`. **Verified:** on the test Deck the difference matched the name of the folder in `userdata/` exactly (with made-up numbers: `76561197972611406 − 76561197960265728 = 12345678`)
 3. **The largest `Timestamp`** in `loginusers.vdf`: when there are several accounts and auto-login is off, the most recent login is the one we want
 4. **`AutoLoginUser`** from `registry.vdf` (`HKCU\Software\Valve\Steam`) is matched against `AccountName` in `loginusers.vdf`. Kept as a cross-check rather than the main path: it is an account name, and it leads to the folder number only through the same `loginusers.vdf`
 5. **Ask**, if after all that the choice is still ambiguous
 
-The order matters: step 1 covers reality, steps 2 and 3 cover a Deck with several users, step 4 exists to catch a mismatch, and step 5 exists so that we do not guess.
+The order matters: step 1 covers reality, steps 2 and 3 cover several users on one SteamOS, step 4 exists to catch a mismatch, and step 5 exists so that we do not guess.
 
 **A running Steam is no longer needed to find the user.** All the sources are files on disk and can be read at any moment. The "while Steam is still running" requirement disappears from step 1 of 5.1: the user can be found both before and after the client is shut down.
 
@@ -493,7 +493,7 @@ So the installer puts everything needed into the game folder itself:
 ```
 <game-dir>/
 ├── uninstall.run        executable, with dialogs
-└── .deck-bundler/       the modules and the recipe, 48 KB
+└── .plumber/            the modules and the recipe, 48 KB
 ```
 
 A dot folder, so that it stays out of the way in the file manager. The execute bit on `uninstall.run` is set right away: the file is created locally, and the problem of a downloaded file (8) does not touch it.
@@ -577,7 +577,7 @@ There is no debugging loop, so:
 
 ### 7.1 Input `[MVP]`
 
-Everything read from the archive exists for the sake of **one string: the path to the exe**. There is no debugging loop: a one-character mistake in the path would only show up on the Deck, with nothing to fix it with. So the path is not typed by hand but taken from the central directory, where it is guaranteed to exist in the archive.
+Everything read from the archive exists for the sake of **one string: the path to the exe**. There is no debugging loop: a one-character mistake in the path would only show up on SteamOS, with nothing to fix it with. So the path is not typed by hand but taken from the central directory, where it is guaranteed to exist in the archive.
 
 - zip only, a folder is not accepted (the reasons are in 2.4)
 - parsing the central directory: the list of paths and sizes
@@ -666,7 +666,7 @@ The default is guessed, with a threefold lead. But two utilities scored 30 each 
 - the title in the library (prefilled from the file listing, without reading the contents: the folder the game was zipped in, then the name of a Unity build, that is an exe with a `<name>_Data` folder next to it, then the name of the archive)
 - the prefix architecture, win32 / win64
 
-There is no install folder here: it is asked for on the Deck (2.8).
+There is no install folder here: it is asked for on SteamOS (2.8).
 
 ### 7.3.1 Detecting DLL wrappers `[MVP]`
 
@@ -706,7 +706,7 @@ The cost is a dozen lines: the file listing is already read from the central dir
 
 The third row is not compatibility for its own sake: bundles built before the field existed have to install the way they always did. An empty list and a missing field have to differ, or an unticked checkbox would silently turn into auto-detection.
 
-**In `install.log`:** list the signs of mods that were found: `*.asi` files, wrappers from the table, a `SCRIPTS` folder. On someone else's Deck it is the only way to tell that the mods did not load.
+**In `install.log`:** list the signs of mods that were found: `*.asi` files, wrappers from the table, a `SCRIPTS` folder. On someone else's SteamOS it is the only way to tell that the mods did not load.
 
 `[?]` The class is wider than one ASI loader, but how much wider we judge by a single game. A second or third archive will show whether the table needs to grow.
 
@@ -884,7 +884,7 @@ Collected from the `[?]` marks above:
 ### Closed
 
 - **Placeholders for empty artwork slots**: not generated. An empty slot stays empty, and Steam shows its default. This also settles the question "in the generator or in the installer" (7.5)
-- **How the overrides checkbox reaches the Deck**: through the `dll_overrides` field in the recipe. An empty list and a missing field mean different things (7.3.1)
+- **How the overrides checkbox reaches SteamOS**: through the `dll_overrides` field in the recipe. An empty list and a missing field mean different things (7.3.1)
 - **`dd` extraction from the file itself**: it works. It also turned out not to be needed for the payload at all: the zip is read straight out of the `.run` (3)
 - **The icon as a fifth slot**: yes, in the MVP. But it is set not by copying a file but by writing the path into the shortcut's `icon` field (7.5)
 - **`ActiveUser` in `registry.vdf`**: the field does not exist at all, nor does the `ActiveProcess` block. There is no `MostRecent` in `loginusers.vdf` either. The mechanism was rewritten as "the only folder → `AutoLogin` → `Timestamp`" (5.1.1)
@@ -898,9 +898,9 @@ Collected from the `[?]` marks above:
 - **Which Steam user to take**: not "the first one that comes along": there is `ActiveUser`, then `MostRecent`. The order, from the surest down, is in 5.1.1
 - **The registry**: we do not do it. We come back to it only if real tests run into a real problem (2.6)
 - **`--strip-components` and nesting detection**: not needed. The path to the exe comes from the central directory together with its nesting, and the archive is unpacked as it is (7.1)
-- **Typing the path to the exe by hand**: no. Only a choice from the select: a path typed by hand cannot be checked by anyone before the run on the Deck (7.2)
+- **Typing the path to the exe by hand**: no. Only a choice from the select: a path typed by hand cannot be checked by anyone before the run on SteamOS (7.2)
 - **Whether to limit the exe search to the root**: no, a flat list over the whole tree. Some games keep the exe in a subfolder, and from the root the list would be empty (7.2)
-- **Where the install location and the Proton version are chosen**: on the Deck, not in the generator. The dividing criterion is in 2.8
+- **Where the install location and the Proton version are chosen**: on SteamOS, not in the generator. The dividing criterion is in 2.8
 - **A GUI application of our own for the questions**: no, `kdialog`. A binary of our own is fragile on a read-only rootfs with libraries that get updated (2.8)
 - **`launch.sh` as the target of the shortcut**: not needed. It worked around `CompatToolMapping` being out of reach while the client runs; since Steam is shut down, the workaround is gone together with `.desktop`, `steamos-add-to-steam` and `PROTON_PATH` (2.2, 2.3)
 - **Two launch modes for debugging**: the question disappeared, there is one mode
