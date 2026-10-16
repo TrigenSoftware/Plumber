@@ -1,0 +1,38 @@
+@import '~/uikit/media.css';
+
+.root {
+  display: grid;
+  gap: var(--sizeSpace);
+}
+
+/* A row per place, top to bottom: the steps get the whole width, so the names
+   to look for on screen stay on their line rather than wrapping onto their own */
+
+.stage {
+  display: grid;
+  gap: var(--sizeSpaceSm);
+  align-items: start;
+}
+
+.stage + .stage {
+  border-block-start: var(--sizeBorder) solid var(--colorBorder);
+  padding-block-start: var(--sizeSpace);
+}
+
+@media (--screenMd) {
+  .stage {
+    grid-template-columns: 13rem minmax(0, 1fr);
+    gap: var(--sizeSpaceLg);
+  }
+}
+
+.where {
+  font-weight: 600;
+}
+
+.steps {
+  display: grid;
+  gap: var(--sizeSpaceSm);
+  margin: 0;
+  padding-inline-start: var(--sizeSpaceLg);
+}

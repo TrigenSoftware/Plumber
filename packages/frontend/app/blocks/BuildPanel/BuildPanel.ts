@@ -81,7 +81,7 @@ const Instructions = component$(({ savedAs }: InstructionsProps) => (
           ...parts.map((part, index) => (
             index % 2 && part
               ? strong({
-                class: styles.key
+                class: typography.key
               })(
                 part
               )

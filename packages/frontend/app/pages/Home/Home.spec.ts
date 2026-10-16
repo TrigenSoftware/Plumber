@@ -12,6 +12,7 @@ import {
 import {
   InjectionContext,
   inject,
+  provide,
   waitTasks
 } from 'nanoviews/store'
 import { context$ } from 'nanoviews'
@@ -23,6 +24,7 @@ import {
   NEW_ISSUE_URL,
   REPOSITORY_URL
 } from '~/shared/constants'
+import { CanSaveFiles$ } from '~/stores/build'
 import { Game$ } from '~/stores/game'
 import {
   type HomeProps,
@@ -32,6 +34,8 @@ import styles from './Home.module.css'
 
 const LOW_STORAGE = 'The browser reports about 100 B of free space, less than '
   + 'the archive. The build writes through a temporary file, so it may run out part way.'
+const UNSUPPORTED = 'This browser is not supported. Plumber needs a Chromium-based browser, such as '
+  + 'Chrome or Edge, to save the installer.'
 
 function dropZone() {
   return screen.getByLabelText<HTMLInputElement>('Drop the game archive here')
@@ -50,8 +54,8 @@ function drop(file: File) {
 
 // The page over a game of its own, with the archive, if there is one, dropped
 // onto it and read
-async function setup(archive: File | null, props?: HomeProps) {
-  const context = new InjectionContext()
+async function setup(archive: File | null, props?: HomeProps, providers: ReturnType<typeof provide>[] = []) {
+  const context = new InjectionContext(providers)
   const game = inject(Game$, context)
 
   render(() => context$(context)(Home(props)))
@@ -128,10 +132,35 @@ describe('pages', () => {
       expect(link.rel).toBe('noopener noreferrer')
     })
 
+    it('should say so up front when the browser cannot save the installer', async () => {
+      await setup(null, {}, [provide(CanSaveFiles$, false)])
+
+      expect(screen.getByText(UNSUPPORTED)).toBeDefined()
+    })
+
+    it('should not warn about a browser that can save the installer', async () => {
+      await setup(null, {}, [provide(CanSaveFiles$, true)])
+
+      expect(screen.queryByText(UNSUPPORTED)).toBeNull()
+    })
+
+    it('should show how it works ahead of the drop zone', async () => {
+      await setup(null)
+
+      const heading = screen.getByRole('heading', {
+        level: 2,
+        name: 'How it works'
+      })
+
+      // Read top to bottom, the steps lead up to the drop: the third one is it
+      expect(heading.compareDocumentPosition(dropZone()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(headingOver(screen.getByText('Drop the zip below.'))).toBe('How it works')
+    })
+
     it('should leave the rest of the form out until there is an archive', async () => {
       await setup(null)
 
-      expect(sectionHeadings()).toEqual([])
+      expect(sectionHeadings()).toEqual(['How it works'])
       expect(buildButton()).toBeNull()
     })
 
@@ -139,6 +168,7 @@ describe('pages', () => {
       await setup(sampleArchive())
 
       expect(sectionHeadings()).toEqual([
+        'How it works',
         'The game',
         'Artwork',
         'Before building'
@@ -163,7 +193,7 @@ describe('pages', () => {
         name: 'Change'
       }))
 
-      expect(sectionHeadings()).toEqual([])
+      expect(sectionHeadings()).toEqual(['How it works'])
       expect(dropZone()).toBeDefined()
     })
 

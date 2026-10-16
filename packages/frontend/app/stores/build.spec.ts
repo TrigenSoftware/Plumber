@@ -20,7 +20,10 @@ import {
   makeZip
 } from '~/services/zip/zip.mock'
 import { Artwork$ } from './artwork.ts'
-import { Build$ } from './build.ts'
+import {
+  Build$,
+  CanSaveFiles$
+} from './build.ts'
 import { Game$ } from './game.ts'
 
 const ENTRIES: MockEntry[] = [
@@ -137,6 +140,23 @@ async function setup(file = archiveOf()) {
 }
 
 describe('stores', () => {
+  describe('CanSaveFiles$', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('should say yes where the browser has showSaveFilePicker', () => {
+      vi.stubGlobal('showSaveFilePicker', () => Promise.reject(new Error('Not picked in a test')))
+
+      expect(inject(CanSaveFiles$, new InjectionContext())).toBe(true)
+    })
+
+    it('should say no where it has none, as Firefox and Safari do', () => {
+      // happy-dom has none either
+      expect(inject(CanSaveFiles$, new InjectionContext())).toBe(false)
+    })
+  })
+
   describe('Build$', () => {
     afterEach(() => {
       vi.unstubAllGlobals()

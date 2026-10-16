@@ -15,11 +15,13 @@ import { ArchivePicker } from '~/blocks/ArchivePicker'
 import { ArtworkGrid } from '~/blocks/ArtworkGrid'
 import { BuildPanel } from '~/blocks/BuildPanel'
 import { GameForm } from '~/blocks/GameForm'
+import { HowItWorks } from '~/blocks/HowItWorks'
 import { PreflightList } from '~/blocks/PreflightList'
 import {
   NEW_ISSUE_URL,
   REPOSITORY_URL
 } from '~/shared/constants'
+import { CanSaveFiles$ } from '~/stores/build'
 import { Game$ } from '~/stores/game'
 import { Callout } from '~/uikit/Callout'
 import mixins from '~/uikit/mixins.module.css'
@@ -69,6 +71,7 @@ export const Home = component$(({
   ...props
 }: HomeProps) => {
   const { $archive } = inject(Game$)
+  const canSave = inject(CanSaveFiles$)
 
   return (
     main({
@@ -122,7 +125,23 @@ export const Home = component$(({
             'open an issue on GitHub'
           ),
           '.'
+        ),
+        // Anywhere else the archive can be read but the installer never saved,
+        // so the page says so before anything starts
+        !canSave && Callout({
+          tone: 'error'
+        })(
+          'This browser is not supported. Plumber needs a Chromium-based browser, such as '
+          + 'Chrome or Edge, to save the installer.'
         )
+      ),
+      // Ahead of the drop zone: the first steps are done before the page is
+      // even opened, and the third is the drop zone right below
+      Section({
+        title: 'How it works',
+        note: 'From a game installed on Windows to the game in the Steam library.'
+      })(
+        HowItWorks()
       ),
       ArchivePicker(),
       // The rest is all about the game in the archive, so it waits for one,

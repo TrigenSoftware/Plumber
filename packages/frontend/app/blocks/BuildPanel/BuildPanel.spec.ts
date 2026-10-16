@@ -22,6 +22,7 @@ import { Build$ } from '~/stores/build'
 import { Game$ } from '~/stores/game'
 import { sampleArchive } from '../shared/game.mock.ts'
 import buttonStyles from '~/uikit/Button/Button.module.css'
+import typography from '~/uikit/typography.module.css'
 import { BuildPanel } from './BuildPanel.ts'
 import styles from './BuildPanel.module.css'
 
@@ -213,7 +214,7 @@ describe('blocks', () => {
 
       build.$phase('done')
 
-      expect([...screen.getByRole('list').querySelectorAll(`.${styles.key}`)].map(key => key.textContent)).toEqual([
+      expect([...screen.getByRole('list').querySelectorAll(`.${typography.key}`)].map(key => key.textContent)).toEqual([
         'Properties',
         'Permissions',
         'Is executable'

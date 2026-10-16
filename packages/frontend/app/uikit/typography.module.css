@@ -41,3 +41,12 @@
 .mono {
   font-family: var(--fontMono);
 }
+
+/* A name to look for on screen: a button, a tab, a menu item. */
+.key {
+  border: var(--sizeBorder) solid var(--colorBorder);
+  border-radius: var(--sizeRadiusSm);
+  background: var(--colorSurfaceHover);
+  padding: 0 var(--sizeSpaceXs);
+  white-space: nowrap;
+}

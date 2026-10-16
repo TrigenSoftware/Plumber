@@ -20,6 +20,18 @@ import { Game$ } from './game.ts'
 export type BuildPhase = 'idle' | 'building' | 'done' | 'failed'
 
 /**
+ * Whether this browser can save the installer at all: the build streams the
+ * `.run` to disk through showSaveFilePicker, which only Chromium-based browsers
+ * have (8). A token rather than a check in place, so a story or a test can
+ * stand in for either kind of browser.
+ *
+ * @returns Whether the picker is there.
+ */
+export function CanSaveFiles$() {
+  return typeof showSaveFilePicker === 'function'
+}
+
+/**
  * Builds the `.run` and streams it straight to the file the human picked.
  * Chromium only: Firefox has no showSaveFilePicker, and building through a
  * Blob would cap the size at a gigabyte or two (8).
