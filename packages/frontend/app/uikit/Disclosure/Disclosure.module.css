@@ -1,0 +1,62 @@
+@import '../media.css';
+
+.root {
+  display: grid;
+}
+
+/* As wide as its words: the row beside them is no place to click */
+.summary {
+  display: flex;
+  gap: var(--sizeSpaceSm);
+  align-items: center;
+  justify-self: start;
+  border-radius: var(--sizeRadiusSm);
+  cursor: pointer;
+  list-style: none;
+  color: var(--colorTextMuted);
+  font-weight: 550;
+}
+
+/* The marker is a chevron of our own: the native triangle differs from engine
+   to engine, and Safari draws it whatever list-style says */
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Two borders of a square turned to point at the folded part: right while
+   folded, down once open. Its size is in em, so it follows the text. */
+
+.summary::before {
+  --disclosureSizeChevron: 0.4em;
+
+  flex: none;
+  transform: translateX(-25%) rotate(-45deg);
+  transition: transform var(--durationSm) ease;
+  border-block-end: var(--sizeBorderFocus) solid currentcolor;
+  border-inline-end: var(--sizeBorderFocus) solid currentcolor;
+  block-size: var(--disclosureSizeChevron);
+  inline-size: var(--disclosureSizeChevron);
+  content: '';
+}
+
+.root[open] > .summary::before {
+  transform: translateY(-25%) rotate(45deg);
+}
+
+/* Focus and a press look like hovering, on top of the outline. */
+.summary:is(:hover, :focus-visible, :active) {
+  color: var(--colorText);
+}
+
+.content {
+  display: grid;
+  gap: var(--sizeSpace);
+  padding-block-start: var(--sizeSpace);
+}
+
+@media (--screenReducedMotion) {
+  .summary::before {
+    transition: none;
+  }
+}

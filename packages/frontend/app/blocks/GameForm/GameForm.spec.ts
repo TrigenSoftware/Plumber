@@ -228,6 +228,24 @@ describe('blocks', () => {
       expect(exeSelect().selectedOptions[0]?.textContent).toBe('speed.exe · 8.0 MB · score 50')
     })
 
+    it('should fold the prefix, the save folders and the mods away, leaving the title and the exe in sight', async () => {
+      await setup()
+
+      const advanced = screen.getByText('Advanced settings').closest('details')!
+
+      expect(advanced.open).toBe(false)
+      expect(advanced.contains(screen.getByRole('combobox', {
+        name: 'Prefix architecture'
+      }))).toBe(true)
+      expect(advanced.contains(screen.getByRole('textbox', {
+        name: 'Folders holding saves and settings'
+      }))).toBe(true)
+      expect(advanced.contains(screen.getByText(/^Found next to the exe/))).toBe(true)
+      expect(advanced.contains(overrideBox())).toBe(true)
+      expect(advanced.contains(titleBox())).toBe(false)
+      expect(advanced.contains(exeSelect())).toBe(false)
+    })
+
     it('should write the chosen prefix architecture to the game', async () => {
       const { $prefixArch } = await setup()
       const arch = screen.getByRole<HTMLSelectElement>('combobox', {

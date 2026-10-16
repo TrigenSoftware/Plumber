@@ -1,5 +1,6 @@
 import type {
   Meta,
+  StoryContext,
   StoryObj
 } from '@nanoviews/storybook'
 import { inject } from 'nanoviews/store'
@@ -11,6 +12,14 @@ import {
   withGame
 } from '../shared/game.mock.ts'
 import { GameForm } from './GameForm.ts'
+
+/** Unfolds the advanced settings, where the prefix, the save folders and the override are. */
+async function openAdvanced({
+  canvas,
+  userEvent
+}: StoryContext) {
+  await userEvent.click(canvas.getByText('Advanced settings'))
+}
 
 /** @returns The sample game with the entries the pattern matches left out of the archive. */
 function sampleWithout(pattern: RegExp) {
@@ -39,8 +48,13 @@ export default meta
 
 type Story = StoryObj<typeof meta>
 
-/** The sample game: a wrapper DLL and an ASI mod next to the exe, so the override is offered, ticked. */
+/** The sample game as it first shows: the title and the exe, the rest folded away. */
 export const Default: Story = {}
+
+/** Unfolded: a wrapper DLL and an ASI mod next to the exe, so the override is offered, ticked. */
+export const Advanced: Story = {
+  play: openAdvanced
+}
 
 /** The box unticked: the game launches as it is, and the launch options go away. */
 export const OverrideUnticked: Story = {
@@ -51,12 +65,14 @@ export const OverrideUnticked: Story = {
 
       return story()
     }
-  ]
+  ],
+  play: openAdvanced
 }
 
 /** Nothing next to the exe for Wine to be told about: there is no override to offer. */
 export const WithoutWrappers: Story = {
-  decorators: [withGame(sampleWithout(/\.dll$/))]
+  decorators: [withGame(sampleWithout(/\.dll$/))],
+  play: openAdvanced
 }
 
 /** The game zipped without its executables: the list is empty and says why. */

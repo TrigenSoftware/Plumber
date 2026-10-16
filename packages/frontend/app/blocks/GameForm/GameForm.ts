@@ -21,6 +21,7 @@ import { formatSize } from '~/shared/utils'
 import { Game$ } from '~/stores/game'
 import { Checkbox } from '~/uikit/Checkbox'
 import { ChoiceField } from '~/uikit/ChoiceField'
+import { Disclosure } from '~/uikit/Disclosure'
 import {
   Field,
   FieldControl
@@ -114,60 +115,66 @@ export const GameForm = component$(({
           )
         )
       ),
-      div({
-        class: styles.row
+      // What a default or the archive already settles, folded away: at first
+      // sight the form is the title and the exe alone
+      Disclosure({
+        summary: 'Advanced settings'
       })(
-        Field({
-          id: 'game-arch',
-          label: 'Prefix architecture'
+        div({
+          class: styles.row
         })(
-          FieldControl({
-            as: Select,
-            value: $prefixArch
+          Field({
+            id: 'game-arch',
+            label: 'Prefix architecture'
           })(
-            option({
-              value: 'win32'
+            FieldControl({
+              as: Select,
+              value: $prefixArch
             })(
-              '32-bit (win32)'
-            ),
-            option({
-              value: 'win64'
-            })(
-              '64-bit (win64)'
+              option({
+                value: 'win32'
+              })(
+                '32-bit (win32)'
+              ),
+              option({
+                value: 'win64'
+              })(
+                '64-bit (win64)'
+              )
             )
+          ),
+          Field({
+            id: 'game-user-data',
+            label: 'Folders holding saves and settings',
+            hint: 'Left alone when installing over an existing copy, and created empty on a clean one.'
+          })(
+            FieldControl({
+              as: TextInput,
+              value: $userData
+            })
           )
         ),
-        Field({
-          id: 'game-user-data',
-          label: 'Folders holding saves and settings',
-          hint: 'Left alone when installing over an existing copy, and created empty on a clean one.'
-        })(
-          FieldControl({
-            as: TextInput,
-            value: $userData
-          })
-        )
-      ),
-      // In the grid of the form, each a step of it like a field
-      if_(length($wrappers))(
-        () => fragment(
-          p({
-            class: `${typography.small} ${typography.muted}`
-          })(
-            () => wrapperSentence($wrappers(), $modSigns())
-          ),
-          ChoiceField({
-            target: Checkbox({
-              checked: $overrideWrappers
-            }),
-            text: 'The game has mods - override the wrapper DLLs',
-            description: when($overrideWrappers, OVERRIDE_HINT, NO_OVERRIDE_HINT)
-          }),
-          if_($overrideWrappers)(
-            () => pre({
-              class: `${styles.code} ${typography.small} ${typography.mono}`
+        // In the grid of the folded part, each a step of it like a field
+        if_(length($wrappers))(
+          () => fragment(
+            p({
+              class: `${typography.small} ${typography.muted}`
             })(
-              $launchOptions
+              () => wrapperSentence($wrappers(), $modSigns())
+            ),
+            ChoiceField({
+              target: Checkbox({
+                checked: $overrideWrappers
+              }),
+              text: 'The game has mods - override the wrapper DLLs',
+              description: when($overrideWrappers, OVERRIDE_HINT, NO_OVERRIDE_HINT)
+            }),
+            if_($overrideWrappers)(
+              () => pre({
+                class: `${styles.code} ${typography.small} ${typography.mono}`
+              })(
+                $launchOptions
+              )
             )
           )
         )
