@@ -335,6 +335,10 @@ def unpack_game(a, recipe):
             items, kept = unpack.plan(zf, game_dir, keep=recipe.get('user_data', []))
             size = sum(info.file_size for info, _, is_dir in items if not is_dir)
             log('%d entries, %s' % (len(items), unpack.human(size)))
+            log('packed with: %s' % ', '.join('%s x%d' % mn for mn in unpack.packing(items)))
+            unpack.check_methods(items)
+            if any(info.compress_type == unpack.DEFLATE64 for info, _, _ in items):
+                log('Deflate64 goes through the installer\'s own decoder: slower than the rest')
             for folder in kept:
                 log('keeping %s as it is, it is already there' % folder)
             names = {os.path.relpath(target, game_dir) for _, target, _ in items}

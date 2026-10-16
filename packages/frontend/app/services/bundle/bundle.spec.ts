@@ -125,6 +125,7 @@ describe('services', () => {
           './steam_install.py',
           './steamctl.py',
           './unpack.py',
+          './deflate64.py',
           './vdf.py',
           './config_surgery.py',
           './check-install.py',

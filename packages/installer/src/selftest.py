@@ -19,11 +19,13 @@ import io
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
 import time
 import zipfile
+import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # make-run.sh lives a level up: it builds a .run, it is not part of one
@@ -31,6 +33,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
 import config_surgery
+import deflate64
 import install
 import steam_install as si
 import steamctl
@@ -780,6 +783,211 @@ def test_unpack_failure_is_explained():
             ok(str(exc).startswith('Cannot unpack Game/a.big:'), str(exc))
         else:
             raise AssertionError('the failed write went unnoticed')
+
+
+# ----------------------------------------------------------------- deflate64
+
+class Bits:
+    """A Deflate bit stream written by hand: values go LSB first, Huffman
+    codes MSB first, the way the format lays them out."""
+
+    def __init__(self):
+        self.out = bytearray()
+        self.acc = 0
+        self.n = 0
+
+    def put(self, value, count):
+        self.acc |= value << self.n
+        self.n += count
+        while self.n >= 8:
+            self.out.append(self.acc & 0xFF)
+            self.acc >>= 8
+            self.n -= 8
+
+    def code(self, code, length):
+        self.put(int(format(code, '0%db' % length)[::-1], 2), length)
+
+    def align(self):
+        if self.n:
+            self.put(0, 8 - self.n)
+
+    def bytes(self):
+        self.align()
+        return bytes(self.out)
+
+
+def deflate64_sample():
+    """A stream that only reads right as Deflate64, with what it decodes to.
+
+    A stored block lays down 60000 bytes; a block of fixed codes then reaches
+    back past 49152 (distance code 31) and past 32768 (code 30) with lengths
+    of length code 285 and its 16 extra bits, and copies over itself. zlib
+    would take 285 for 258 and refuse both distances. -> (stream, data)
+    """
+    window = bytes((i * 7919 + (i >> 7) * 31) & 0xFF for i in range(60000))
+    bits = Bits()
+    bits.put(0, 1)                   # not the last block
+    bits.put(0, 2)                   # stored
+    bits.align()
+    bits.put(len(window), 16)
+    bits.put(len(window) ^ 0xFFFF, 16)
+    out = bytearray(bits.bytes() + window)
+    bits = Bits()
+    bits.put(1, 1)                   # the last block
+    bits.put(1, 2)                   # fixed codes
+    data = bytearray(window)
+
+    bits.code(0x30 + ord('A'), 8)    # a literal
+    data += b'A'
+
+    def match(length, distance, sym, dist_sym):
+        start = len(data) - distance
+        for i in range(length):
+            data.append(data[start + i])
+        if sym == 285:
+            bits.code(0xC0 + 5, 8)
+            bits.put(length - 3, 16)
+        else:                        # 257..264: lengths 3..10, 7-bit codes
+            bits.code(sym - 256, 7)
+        bits.code(dist_sym, 5)
+        base, extra = deflate64.DIST_BASE[dist_sym], deflate64.DIST_EXTRA[dist_sym]
+        bits.put(distance - base, extra)
+
+    match(1000, 60001, 285, 31)      # back to the very start
+    match(300, 35000, 285, 30)
+    match(10, 1, 264, 0)             # over itself: the last byte ten times
+    bits.code(0, 7)                  # end of block
+    return bytes(out + bits.bytes()), bytes(data)
+
+
+def inflate_all(stream, step=1 << 20):
+    src = io.BytesIO(stream)
+    parts = []
+    size = deflate64.inflate(lambda n: src.read(min(n, step)), parts.append)
+    data = b''.join(parts)
+    eq(size, len(data), 'the size it reports')
+    return data
+
+
+@case
+def test_deflate64_reaches_64k():
+    """deflate64: 64 KiB distances and length code 285 decode, a byte at a time too"""
+    stream, data = deflate64_sample()
+    eq(inflate_all(stream), data, 'read in big pieces')
+    eq(inflate_all(stream, step=1), data, 'read a byte at a time')
+    ok(len(data) == 61311, 'every copy made it: %d bytes' % len(data))
+
+
+@case
+def test_deflate64_reads_plain_deflate():
+    """deflate64: stored, fixed and dynamic blocks from zlib decode the same"""
+    # No run in it repeats for 258 bytes, the one length the two formats code
+    # differently, so zlib's output is valid Deflate64 too
+    data = b' '.join(str(i).encode() for i in range(60000))
+    for level, strategy in ((0, zlib.Z_DEFAULT_STRATEGY), (6, zlib.Z_FIXED),
+                            (9, zlib.Z_DEFAULT_STRATEGY)):
+        z = zlib.compressobj(level, zlib.DEFLATED, -15, 9, strategy)
+        eq(inflate_all(z.compress(data) + z.flush()), data, 'level %d, strategy %d' % (level, strategy))
+
+
+@case
+def test_deflate64_damage_is_an_error():
+    """deflate64: a cut or broken stream raises Deflate64Error, never hangs"""
+    stream, _ = deflate64_sample()
+    for cut in (0, 1, 4, 60004, len(stream) - 1):
+        try:
+            inflate_all(stream[:cut])
+        except deflate64.Deflate64Error:
+            pass
+        else:
+            raise AssertionError('a stream cut at %d decoded' % cut)
+    try:
+        inflate_all(b'\x07')         # block type 3
+    except deflate64.Deflate64Error as exc:
+        ok('reserved' in str(exc), str(exc))
+    else:
+        raise AssertionError('the reserved block type decoded')
+
+
+def raw_zip(path, entries):
+    """A zip behind a .run's prefix, its entries packed by hand, for methods
+    zipfile cannot write: [(name, method, packed, crc, size, flags)]."""
+    body = bytearray(PREFIX)
+    cd = bytearray()
+    for name, method, packed, crc, size, flags in entries:
+        n = name.encode()
+        offset = len(body) - len(PREFIX)
+        body += struct.pack('<IHHHHHIIIHH', 0x04034b50, 21, flags, method, 0, 0x21,
+                            crc, len(packed), size, len(n), 0) + n + packed
+        cd += struct.pack('<IHHHHHHIIIHHHHHII', 0x02014b50, 0x0315, 21, flags, method,
+                          0, 0x21, crc, len(packed), size, len(n), 0, 0, 0, 0,
+                          0o100644 << 16, offset) + n
+    offset = len(body) - len(PREFIX)
+    body += cd + struct.pack('<IHHHHIIH', 0x06054b50, 0, 0, len(entries), len(entries),
+                             len(cd), offset, 0)
+    with open(path, 'wb') as f:
+        f.write(body)
+    return path
+
+
+@case
+def test_unpack_deflate64():
+    """unpack: a Deflate64 entry comes out of the .run, next to a Deflate one"""
+    # What Windows 10 packs a game over 2 GB with: zipfile will not open it
+    stream, data = deflate64_sample()
+    exe = zlib.compressobj(9, zlib.DEFLATED, -15)
+    exe = exe.compress(b'MZ' * 100) + exe.flush()
+    with tempfile.TemporaryDirectory() as tmp:
+        run = raw_zip(os.path.join(tmp, 'game.run'), [
+            ('Game/speed.exe', 8, exe, zlib.crc32(b'MZ' * 100), 200, 0),
+            ('Game/data.big', 9, stream, zlib.crc32(data), len(data), 0)
+        ])
+        dest = os.path.join(tmp, 'game')
+        with unpack.open_archive(run) as zf:
+            items, _ = unpack.plan(zf, dest)
+            unpack.check_methods(items)
+            eq(unpack.packing(items), [('Deflate', 1), ('Deflate64', 1)], 'what the log says')
+            eq(unpack.extract(zf, items), 200 + len(data), 'bytes written')
+
+        eq(read(dest, 'Game', 'data.big'), data, 'the Deflate64 entry')
+        eq(read(dest, 'Game', 'speed.exe'), b'MZ' * 100, 'the Deflate one')
+
+
+@case
+def test_unpack_deflate64_damage():
+    """unpack: a Deflate64 entry that does not check out is called damaged"""
+    stream, data = deflate64_sample()
+    with tempfile.TemporaryDirectory() as tmp:
+        for what, packed, crc in (('a wrong CRC', stream, zlib.crc32(data) ^ 1),
+                                  ('a cut stream', stream[:-40], zlib.crc32(data))):
+            run = raw_zip(os.path.join(tmp, 'game.run'), [
+                ('Game/data.big', 9, packed, crc, len(data), 0)
+            ])
+            try:
+                unpack_into(os.path.join(tmp, 'game'), run)
+            except unpack.UnpackError as exc:
+                ok(str(exc).startswith('Game/data.big is damaged in the archive'), '%s: %s' % (what, exc))
+            else:
+                raise AssertionError('%s went unnoticed' % what)
+
+
+@case
+def test_unpack_refuses_what_it_cannot_unpack():
+    """install: PPMd or a password stops it before the first byte and before Steam"""
+    for flags, method, said in ((0, 98, 'Game/data.big is packed with PPMd'),
+                                (1, 8, 'Game/data.big is password-protected')):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = raw_zip(os.path.join(tmp, 'game.run'), [
+                ('Game/speed.exe', 0, b'MZ', zlib.crc32(b'MZ'), 2, 0),
+                ('Game/data.big', method, b'packed', 0, 6, flags)
+            ])
+            rc, out, fake = run_install(tmp, archive=run)
+
+            eq(rc, 1, 'exit code')
+            ok('ERROR: %s' % said in out, 'the reason, for the dialog:\n%s' % out)
+            eq(fake.calls, [], 'Steam never touched')
+            ok(not os.path.exists(os.path.join(tmp, 'game', 'Game', 'speed.exe')),
+               'nothing unpacked, not even what could be')
 
 
 # ------------------------------------------------------------------- install

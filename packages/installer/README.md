@@ -16,6 +16,7 @@ The reasoning behind the decisions is in **[`SPEC.md`](../../SPEC.md)** at the r
 | `src/steam_install.py` | user, shortcut, Proton, DLL wrappers, artwork |
 | `src/steamctl.py` | the Steam client's lifecycle |
 | `src/unpack.py` | unpacks the zip straight out of the `.run`, Zip64 included |
+| `src/deflate64.py` | a Deflate64 decoder for what Windows 10 packs big folders with: zipfile has none |
 | `src/vdf.py` | reader and writer for both VDF formats |
 | `src/config_surgery.py` | precise edits to `config.vdf` without parsing it into a tree |
 | `src/check-install.py` | an independent acceptance check of what was installed |

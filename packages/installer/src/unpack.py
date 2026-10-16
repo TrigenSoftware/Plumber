@@ -7,10 +7,15 @@ looks for the Zip64 end record at the offset written inside the archive,
 which the prefix has shifted, and gives up with "Damaged Zip archive". Still
 so in libarchive's master (read_zip64_eocd). zipfile finds the end records
 from the end of the file and works the shift out itself, Zip64 included.
+
+Neither of them reads Deflate64, which Windows 10 packs big folders with, so
+deflate64.py does it here; anything else zipfile has no codec for is refused
+before the first byte.
 """
 
 import os
 import shutil
+import struct
 import time
 import zipfile
 import zlib
@@ -19,6 +24,16 @@ CHUNK = 1 << 20
 # Files take whole blocks on disk, so every one of them costs up to a block
 # more than its size; 4 KiB is the block of ext4 and of most SD cards.
 BLOCK = 4096
+
+DEFLATE64 = 9
+# What the entries can be packed with: zipfile's codecs, Zstandard where the
+# Python has it (3.14), and Deflate64 by way of deflate64.py
+UNPACKS = {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED, zipfile.ZIP_BZIP2,
+           zipfile.ZIP_LZMA, DEFLATE64}
+if hasattr(zipfile, 'ZIP_ZSTANDARD'):
+    UNPACKS.add(zipfile.ZIP_ZSTANDARD)
+METHODS = {0: 'Store', 8: 'Deflate', 9: 'Deflate64', 12: 'BZip2', 14: 'LZMA',
+           93: 'Zstandard', 95: 'XZ', 97: 'WavPack', 98: 'PPMd', 99: 'AES'}
 
 
 class UnpackError(Exception):
@@ -84,6 +99,39 @@ def plan(zf, dest, keep=()):
     return items, sorted(folder for folder, there in kept.items() if there)
 
 
+def method_name(method):
+    return METHODS.get(method, 'method %d' % method)
+
+
+def packing(items):
+    """How the files about to be written are packed: [(method name, count)],
+    the most used first, for the log."""
+    count = {}
+    for info, _, is_dir in items:
+        if not is_dir:
+            count[info.compress_type] = count.get(info.compress_type, 0) + 1
+    ranked = sorted(count.items(), key=lambda item: -item[1])
+    return [(method_name(method), n) for method, n in ranked]
+
+
+def check_methods(items):
+    """Refuses before the first byte an archive with files nothing here can
+    unpack: found halfway, it would leave half a game behind. 7-Zip offers
+    PPMd and encryption for a zip, and Windows packs neither."""
+    for info, _, is_dir in items:
+        if is_dir:
+            continue
+        if info.flag_bits & 0x1:
+            raise UnpackError('%s is password-protected, and the installer cannot '
+                              'unpack it. Zip the game folder again without a '
+                              'password.' % info.filename)
+        if info.compress_type not in UNPACKS:
+            raise UnpackError('%s is packed with %s, which the installer cannot '
+                              'unpack. Zip the game folder again: right-click it '
+                              'and choose Compress to → ZIP File.'
+                              % (info.filename, method_name(info.compress_type)))
+
+
 def blocks(size):
     return -(-size // BLOCK) * BLOCK
 
@@ -115,6 +163,48 @@ def check_space(items, dest):
     return need, free
 
 
+def damaged(info, why):
+    return UnpackError('%s is damaged in the archive (%s). The installer may not '
+                       'have downloaded completely.' % (info.filename, why))
+
+
+def inflate64(zf, info, write):
+    """Unpacks a Deflate64 entry, its packed bytes read straight from the
+    archive: zipfile will not even open one. Checked the way zipfile checks
+    what it unpacks, by size and CRC."""
+    import deflate64   # only here: the uninstaller's copy never unpacks
+
+    with open(zf.filename, 'rb') as f:
+        f.seek(info.header_offset)
+        head = f.read(30)
+        if len(head) < 30 or head[:4] != b'PK\x03\x04':
+            raise damaged(info, 'no local header where the directory points')
+        # The local header has extra fields of its own, sized apart from the
+        # directory's
+        name_len, extra_len = struct.unpack('<HH', head[26:30])
+        f.seek(name_len + extra_len, 1)
+        left = info.compress_size
+        crc = 0
+
+        def read(n):
+            nonlocal left
+            piece = f.read(min(n, left))
+            left -= len(piece)
+            return piece
+
+        def out(piece):
+            nonlocal crc
+            crc = zlib.crc32(piece, crc)
+            write(piece)
+
+        try:
+            size = deflate64.inflate(read, out)
+        except deflate64.Deflate64Error as exc:
+            raise damaged(info, exc) from exc
+    if size != info.file_size or crc != info.CRC:
+        raise damaged(info, 'Bad CRC-32')
+
+
 def extract(zf, items, progress=None):
     """Writes the entries out; `progress(done, total)` gets bytes. -> bytes."""
     total = sum(info.file_size for info, _, is_dir in items if not is_dir)
@@ -125,22 +215,28 @@ def extract(zf, items, progress=None):
                 os.makedirs(target, exist_ok=True)
                 continue
             os.makedirs(os.path.dirname(target), exist_ok=True)
-            with zf.open(info) as src, open(target, 'wb') as dst:
-                while True:
-                    chunk = src.read(CHUNK)
-                    if not chunk:
-                        break
-                    dst.write(chunk)
-                    done += len(chunk)
+            with open(target, 'wb') as dst:
+                def write(piece):
+                    nonlocal done
+                    dst.write(piece)
+                    done += len(piece)
                     if progress:
                         progress(done, total)
+
+                if info.compress_type == DEFLATE64:
+                    inflate64(zf, info, write)
+                else:
+                    with zf.open(info) as src:
+                        while True:
+                            piece = src.read(CHUNK)
+                            if not piece:
+                                break
+                            write(piece)
         except OSError as exc:
             raise UnpackError('Cannot unpack %s: %s.'
                               % (info.filename, exc.strerror or exc)) from exc
         except (zipfile.BadZipFile, zlib.error, EOFError) as exc:
-            raise UnpackError('%s is damaged in the archive (%s). The installer '
-                              'may not have downloaded completely.'
-                              % (info.filename, exc)) from exc
+            raise damaged(info, exc) from exc
         except NotImplementedError as exc:
             raise UnpackError('%s is packed in a way this installer cannot '
                               'unpack (%s).' % (info.filename, exc)) from exc

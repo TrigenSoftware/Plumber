@@ -4,6 +4,7 @@ import installPy from './src/install.py?raw'
 import steamInstallPy from './src/steam_install.py?raw'
 import steamctlPy from './src/steamctl.py?raw'
 import unpackPy from './src/unpack.py?raw'
+import deflate64Py from './src/deflate64.py?raw'
 import vdfPy from './src/vdf.py?raw'
 import configSurgeryPy from './src/config_surgery.py?raw'
 import checkInstallPy from './src/check-install.py?raw'
@@ -46,6 +47,10 @@ export const INSTALLER_FILES = [
   {
     name: 'unpack.py',
     source: unpackPy
+  },
+  {
+    name: 'deflate64.py',
+    source: deflate64Py
   },
   {
     name: 'vdf.py',
