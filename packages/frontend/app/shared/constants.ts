@@ -6,3 +6,6 @@ export const GENERATOR = 'plumber 1.0.0'
 
 /** Where the code lives: anyone can read what the installer does on SteamOS. */
 export const REPOSITORY_URL = 'https://github.com/TrigenSoftware/Plumber'
+
+/** Where a problem gets reported: straight to the bug report form, which asks for install.log. */
+export const NEW_ISSUE_URL = `${REPOSITORY_URL}/issues/new?template=bug-report.yml`

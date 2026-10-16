@@ -19,7 +19,10 @@ import {
   SAMPLE_ENTRIES,
   sampleArchive
 } from '~/blocks/shared/game.mock'
-import { REPOSITORY_URL } from '~/shared/constants'
+import {
+  NEW_ISSUE_URL,
+  REPOSITORY_URL
+} from '~/shared/constants'
 import { Game$ } from '~/stores/game'
 import {
   type HomeProps,
@@ -67,6 +70,12 @@ function sourceLink() {
   })
 }
 
+function issueLink() {
+  return screen.getByRole<HTMLAnchorElement>('link', {
+    name: 'open an issue on GitHub'
+  })
+}
+
 function sectionHeadings() {
   return screen.queryAllByRole('heading', {
     level: 2
@@ -93,8 +102,8 @@ describe('pages', () => {
     it('should ask for an archive before anything else', async () => {
       await setup(null)
 
-      // The one control on the page, next to the link to the code
-      expect(Array.from(document.querySelectorAll('a, button, input, select, textarea'))).toEqual([sourceLink(), dropZone()])
+      // The one control on the page, after the links to the code and to a new issue
+      expect(Array.from(document.querySelectorAll('a, button, input, select, textarea'))).toEqual([sourceLink(), issueLink(), dropZone()])
     })
 
     it('should link to its code in a tab of its own', async () => {
@@ -104,6 +113,17 @@ describe('pages', () => {
 
       expect(link.href).toBe(REPOSITORY_URL)
       // Leaving the page would drop the archive and the artwork in the form
+      expect(link.target).toBe('_blank')
+      expect(link.rel).toBe('noopener noreferrer')
+    })
+
+    it('should say it is still being tested, and send a problem to a new issue in a tab of its own', async () => {
+      await setup(null)
+
+      const link = issueLink()
+
+      expect(screen.getByText(/^Plumber is still being tested: use it at your own risk\./)).toBe(link.parentElement)
+      expect(link.href).toBe(NEW_ISSUE_URL)
       expect(link.target).toBe('_blank')
       expect(link.rel).toBe('noopener noreferrer')
     })

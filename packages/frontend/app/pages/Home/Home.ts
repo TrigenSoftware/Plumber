@@ -16,8 +16,12 @@ import { ArtworkGrid } from '~/blocks/ArtworkGrid'
 import { BuildPanel } from '~/blocks/BuildPanel'
 import { GameForm } from '~/blocks/GameForm'
 import { PreflightList } from '~/blocks/PreflightList'
-import { REPOSITORY_URL } from '~/shared/constants'
+import {
+  NEW_ISSUE_URL,
+  REPOSITORY_URL
+} from '~/shared/constants'
 import { Game$ } from '~/stores/game'
+import { Callout } from '~/uikit/Callout'
 import mixins from '~/uikit/mixins.module.css'
 import typography from '~/uikit/typography.module.css'
 import styles from './Home.module.css'
@@ -100,6 +104,22 @@ export const Home = component$(({
             rel: 'noopener noreferrer'
           })(
             'the code on GitHub'
+          ),
+          '.'
+        ),
+        Callout({
+          tone: 'warning'
+        })(
+          'Plumber is still being tested: use it at your own risk. If you run into a problem '
+          + 'and want to help the project, ',
+          // In a tab of its own too, for the same reason
+          a({
+            class: mixins.focusOutline,
+            href: NEW_ISSUE_URL,
+            target: '_blank',
+            rel: 'noopener noreferrer'
+          })(
+            'open an issue on GitHub'
           ),
           '.'
         )

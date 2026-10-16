@@ -2,6 +2,9 @@
 
 Turns a zipped Windows game into a single `.run` installer for SteamOS: run it once, and the game is in the Steam library with its artwork and Proton set up.
 
+> [!WARNING]
+> Plumber is still being tested: use it at your own risk. If you run into a problem and want to help the project, [open an issue on GitHub](https://github.com/TrigenSoftware/Plumber/issues/new?template=bug-report.yml).
+
 Why everything is the way it is: [`SPEC.md`](SPEC.md).
 
 ## Layout
