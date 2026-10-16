@@ -161,6 +161,33 @@ DEST="${DEST:-$(ask_dir "$HOME/Games")}"
 [ -n "$DEST" ] || die "no folder selected"
 GAMEDIR="$DEST/$SLUG/game"
 
+# Another game in the folder is asked about before a byte is written there:
+# two games can share a slug, and the second one unpacked over the first
+# breaks it (folder_occupant in install.py). Without windows to ask in, the
+# answer is no.
+if [ -z "$DRYRUN" ]; then
+    while :; do
+        THERE=$(python3 "$HERE/install.py" --recipe "$RECIPE" --game-dir "$GAMEDIR" \
+            --check-folder 2>/dev/null) || THERE="files that could not be checked"
+        [ -n "$THERE" ] || break
+        { [ -n "$GUI" ] && have kdialog; } || die "$GAMEDIR already holds $THERE"
+        _s=0
+        kdialog --title "$NAME" --warningyesnocancel "The folder <b>$GAMEDIR</b> already holds <b>$THERE</b>.
+
+Installing <b>$NAME</b> there would overwrite the files the two have in
+common, and the other game could stop working." \
+            --yes-label "Choose another folder" --no-label "Install there anyway" \
+            2>/dev/null || _s=$?
+        case $_s in
+            0) DEST=$(ask_dir "$DEST")
+               [ -n "$DEST" ] || die "no folder selected"
+               GAMEDIR="$DEST/$SLUG/game" ;;
+            1) break ;;
+            *) exit 0 ;;
+        esac
+    done
+fi
+
 PROTON="${PROTON:-$(ask_proton)}"
 STEAM_USER="${STEAM_USER:-$(ask_user)}"
 echo "Installing: $NAME"

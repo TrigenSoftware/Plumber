@@ -13,7 +13,8 @@ to write it.
 
 Exit codes: 0 installed; 1 failed; 2 Steam kept undoing the edit; 3 the Steam
 account has to be chosen; 4 (PARTIAL) the game is in the library, but a step
-after the shortcut did not go through.
+after the shortcut did not go through; 5 (NOT_ITS_FOLDER) nothing removed: the
+folder to delete whole does not look like the game's own.
 """
 
 import argparse
@@ -34,6 +35,7 @@ import unpack
 import vdf
 
 PARTIAL = 4
+NOT_ITS_FOLDER = 5
 PROGRESS_REF = None
 QDBUS = shutil.which('qdbus6') or shutil.which('qdbus')
 # True while the client is down because of us. Every way out of main(), an
@@ -119,6 +121,8 @@ def main(argv=None):
     ap.add_argument('--uninstall', action='store_true')
     ap.add_argument('--list-proton', action='store_true')
     ap.add_argument('--list-users', action='store_true')
+    ap.add_argument('--check-folder', action='store_true',
+                    help='print what --game-dir already holds, if it is not this game')
     ap.add_argument('--steam-user', default='',
                     help='userdata folder to install into, when there is a choice')
     ap.add_argument('--purge', action='store_true',
@@ -139,6 +143,13 @@ def main(argv=None):
 
     if not a.recipe or not a.game_dir:
         ap.error('--recipe and --game-dir are required')
+
+    if a.check_folder:
+        there = folder_occupant(os.path.abspath(a.game_dir),
+                                json.load(open(a.recipe, encoding='utf-8')))
+        if there:
+            print(there)
+        return 0
     global PROGRESS_REF
     PROGRESS_REF = a.progress_ref or None
 
@@ -156,6 +167,31 @@ def main(argv=None):
         if STEAM_STOPPED:
             log('\nSteam is still down, starting it again')
             start_steam()
+
+
+def folder_occupant(game_dir, recipe):
+    """What the game folder already holds when that is not this game: a name
+    to show, or None when it is free to unpack into.
+
+    Different games come out with the same slug - Need for Speed: Most Wanted
+    is a 2005 game and a 2012 one - and unpacking one over the other overwrites
+    the files they share, which breaks the first. Our own leftovers ask no
+    question: install.log, and an earlier install of this same game.
+    """
+    try:
+        names = [n for n in os.listdir(game_dir) if n != 'install.log']
+    except FileNotFoundError:
+        return None
+    if not names:
+        return None
+    try:
+        with open(os.path.join(game_dir, '.plumber', 'recipe.json'), encoding='utf-8') as f:
+            there = json.load(f)
+    except (OSError, ValueError):
+        return 'files the installer did not put there'
+    if there.get('name') == recipe.get('name') and there.get('exe') == recipe.get('exe'):
+        return None
+    return there.get('name') or 'another game'
 
 
 def run(a):
@@ -182,7 +218,7 @@ def run(a):
     cfg_path = os.path.join(si.STEAM_ROOT, 'config', 'config.vdf')
 
     if a.uninstall:
-        return do_uninstall(uid, appid, '"%s"' % exe, a)
+        return do_uninstall(uid, appid, '"%s"' % exe, a, recipe)
 
     names = set()
     if a.archive:
@@ -403,14 +439,46 @@ def install_uninstaller(game_dir, recipe_path, log=print):
         log('  uninstall-template.sh not found, uninstaller not installed')
 
 
-def do_uninstall(uid, appid, exe_quoted, a):
+def purge_refusal(game_dir, recipe):
+    """Why the folder must not be deleted whole, or None when it is the game's
+    own: <somewhere>/<slug>/game, the layout setup.sh makes, and neither the
+    home folder nor the root. Removing everything deletes the folder the
+    uninstaller sits in, and a copy of it carried elsewhere along with its
+    .plumber would take that other folder with it."""
+    if os.path.islink(game_dir):
+        return 'it is a link to another folder'
+    gd = os.path.realpath(game_dir)
+    if gd in ('/', os.path.realpath(os.path.expanduser('~'))):
+        return 'it is %s' % gd
+    slug = recipe.get('slug')
+    if os.path.basename(gd) != 'game' or os.path.basename(os.path.dirname(gd)) != slug:
+        return 'the installer puts this game into <folder>/%s/game' % slug
+    return None
+
+
+def do_uninstall(uid, appid, exe_quoted, a, recipe):
     log('\n--- uninstall ---')
+    gd = os.path.abspath(a.game_dir)
+    if a.purge:
+        why = purge_refusal(gd, recipe)
+        if why:
+            log('ERROR: %s is not deleted whole, and nothing else is removed '
+                'either: %s.' % (gd, why))
+            return NOT_ITS_FOLDER
     idx, found = si.find_shortcut(uid, appid=appid, exe_quoted=exe_quoted)
     if found:
         real = vdf.as_unsigned32(found.get('appid', 0))
-        log('  found shortcut "%s": %s, appid=%d'
-            % (idx, found.get('AppName'), real))
-        appid = real
+        if real:
+            log('  found shortcut "%s": %s, appid=%d'
+                % (idx, found.get('AppName'), real))
+            appid = real
+        else:
+            # Rewritten by some other tool. Its 0 would take every entry
+            # without an appid along, and CompatToolMapping "0" - the Steam
+            # Play default for all other games - so the computed one stays,
+            # and the entry goes by its Exe
+            log('  found shortcut "%s": %s, without an appid; using computed '
+                'appid=%d' % (idx, found.get('AppName'), appid))
     else:
         log('  no shortcut with this Exe, using computed appid=%d' % appid)
     if a.dry_run:
@@ -422,13 +490,12 @@ def do_uninstall(uid, appid, exe_quoted, a):
     sc_path = os.path.join(si.user_config(uid), 'shortcuts.vdf')
     si.backup(sc_path, log=log)
     si.backup(os.path.join(si.STEAM_ROOT, 'config', 'config.vdf'), log=log)
-    si.remove_shortcut(uid, appid=appid, log=log)
+    si.remove_shortcut(uid, appid=appid, exe_quoted=exe_quoted, log=log)
     si.unset_proton(appid, log=log)
     si.remove_art(uid, appid, log=log)
 
     if a.purge:
         pfx = os.path.join(si.STEAM_ROOT, 'steamapps', 'compatdata', str(appid))
-        gd = os.path.abspath(a.game_dir)
         # portable games keep their saves next to the exe - warn about it
         saves = [os.path.join(r, f) for r, _, fs in os.walk(gd)
                  for f in fs if os.sep + 'SAVES' + os.sep in os.path.join(r, f)]

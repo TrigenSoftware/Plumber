@@ -382,8 +382,9 @@ def remove_shortcut(uid, appid=None, exe_quoted=None, log=print):
     if not os.path.isfile(path):
         return False
     root, data, raw, endpos = vdf.read_shortcuts(path)
+    # An appid of 0 is no appid: it would match every entry without one
     hit = [i for i, e in data.items()
-           if (appid is not None and vdf.as_unsigned32(e.get('appid', 0)) == appid)
+           if (appid and vdf.as_unsigned32(e.get('appid', 0)) == appid)
            or (exe_quoted is not None and e.get('Exe') == exe_quoted)]
     if not hit:
         return False
@@ -409,6 +410,9 @@ def set_proton(appid, tool_name, log=print):
 
 
 def unset_proton(appid, log=print):
+    if not appid:
+        raise ValueError('CompatToolMapping "0" is the Steam Play default for '
+                         'every other game, never an entry of ours')
     path = os.path.join(STEAM_ROOT, 'config', 'config.vdf')
     txt = open(path, encoding='utf-8', errors='surrogateescape').read()
     new = config_surgery.remove_mapping(txt, appid)
@@ -449,6 +453,8 @@ def install_art(uid, appid, art_dir, log=print):
 
 
 def remove_art(uid, appid, log=print):
+    if not appid:
+        raise ValueError('no appid, and every artwork file would match it')
     grid = os.path.join(user_config(uid), 'grid')
     n = 0
     if os.path.isdir(grid):

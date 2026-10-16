@@ -29,6 +29,10 @@ CHUNK = 1 << 20
 # Files take whole blocks on disk, so every one of them costs up to a block
 # more than its size; 4 KiB is the block of ext4 and of most SD cards.
 BLOCK = 4096
+# What has to stay free once the game is in. SteamOS and Steam keep writing to
+# the drive - settings, shader caches, updates - and on one filled to the last
+# byte the client cannot even save its own files.
+RESERVE = 2 * 10 ** 9
 
 DEFLATE64 = 9
 # What the entries can be packed with: zipfile's codecs, Zstandard where the
@@ -147,7 +151,8 @@ def blocks(size):
 
 
 def check_space(items, dest):
-    """Refuses before the first byte when the drive cannot take the game.
+    """Refuses before the first byte when the drive cannot take the game and
+    still keep RESERVE free.
 
     A full drive found halfway costs minutes of waiting and leaves half a game
     behind. Files about to be overwritten give their room back.
@@ -167,9 +172,10 @@ def check_space(items, dest):
     while not os.path.isdir(probe):
         probe = os.path.dirname(probe)
     free = shutil.disk_usage(probe).free
-    if need > free:
-        raise UnpackError('Not enough free space: the game needs %s, the drive '
-                          'has %s.' % (human(need), human(free)))
+    if need + RESERVE > free:
+        raise UnpackError('Not enough free space: the game needs %s, and %s has '
+                          'to stay free for SteamOS and Steam. The drive has %s.'
+                          % (human(need), human(RESERVE), human(free)))
     return need, free
 
 

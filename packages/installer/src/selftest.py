@@ -772,6 +772,30 @@ def test_unpack_checks_space_first():
 
 
 @case
+def test_unpack_leaves_room_for_steamos():
+    """unpack: a game that fits but leaves less than RESERVE free is refused"""
+    # A drive filled to the last byte leaves Steam unable to save its own files
+    with tempfile.TemporaryDirectory() as tmp:
+        run = game_zip(os.path.join(tmp, 'game.run'), {'Game/a.big': b'x' * 100000})
+        dest = os.path.join(tmp, 'game')
+        disk_usage = shutil.disk_usage
+        try:
+            with unpack.open_archive(run) as zf:
+                items = unpack.plan(zf, dest)[0]
+                for free, fits in ((unpack.RESERVE + 50000, False), (unpack.RESERVE + 200000, True)):
+                    shutil.disk_usage = lambda path, free=free: disk_usage(path)._replace(free=free)
+                    try:
+                        unpack.check_space(items, dest)
+                    except unpack.UnpackError as exc:
+                        ok(not fits, str(exc))
+                        ok('2.0 GB has to stay free' in str(exc), str(exc))
+                    else:
+                        ok(fits, 'a drive with %d free taken' % free)
+        finally:
+            shutil.disk_usage = disk_usage
+
+
+@case
 def test_unpack_failure_is_explained():
     """unpack: a write that fails ends in a message, not a traceback"""
     with tempfile.TemporaryDirectory() as tmp:
@@ -1145,6 +1169,36 @@ def run_install(tmp, proton='proton_9', config=CONFIG_WITH_CTM, broken=None,
     return rc, out.getvalue(), fake
 
 
+def run_uninstall(tmp, game, purge=False, entries=None, config=CONFIG_WITH_CTM):
+    """install.main() --uninstall on a fake Steam in `tmp`, for the game NFS
+    (slug nfs) in `game`. -> (exit code, log, FakeSteam)"""
+    root = fake_steam(tmp)
+    with open(os.path.join(root, 'config', 'config.vdf'), 'w') as f:
+        f.write(config)
+    if entries is not None:
+        vdf.write_shortcuts(os.path.join(si.user_config('12345678'), 'shortcuts.vdf'), entries)
+    recipe = os.path.join(tmp, 'recipe.json')
+    with open(recipe, 'w') as f:
+        json.dump({'name': 'NFS', 'slug': 'nfs', 'exe': 'speed.exe'}, f)
+
+    fake = FakeSteam()
+    patches = [(steamctl, 'shutdown', fake.shutdown), (steamctl, 'start', fake.start),
+               (time, 'sleep', quiet)]
+    saved = [(mod, name, getattr(mod, name)) for mod, name, _ in patches]
+    out = io.StringIO()
+    try:
+        for mod, name, value in patches:
+            setattr(mod, name, value)
+        with contextlib.redirect_stdout(out):
+            rc = install.main(['--recipe', recipe, '--game-dir', game, '--uninstall']
+                              + (['--purge'] if purge else []))
+    finally:
+        for mod, name, value in saved:
+            setattr(mod, name, value)
+        install.STEAM_STOPPED = False
+    return rc, out.getvalue(), fake
+
+
 def placed_art(uid='12345678'):
     grid = os.path.join(si.user_config(uid), 'grid')
     return sorted(os.listdir(grid)) if os.path.isdir(grid) else []
@@ -1222,6 +1276,105 @@ def test_crash_brings_steam_back():
 
 # ------------------------------------------------------------- shell scripts
 
+# The Steam Play default for every game without a mapping of its own
+CONFIG_WITH_DEFAULT = CONFIG_WITH_CTM.replace(
+    '\t\t\t\t"CompatToolMapping"\n\t\t\t\t{\n',
+    '\t\t\t\t"CompatToolMapping"\n\t\t\t\t{\n\t\t\t\t\t"0"\n\t\t\t\t\t{\n'
+    '\t\t\t\t\t\t"name"\t\t"proton_9"\n\t\t\t\t\t\t"config"\t\t""\n'
+    '\t\t\t\t\t\t"priority"\t\t"75"\n\t\t\t\t\t}\n')
+
+
+@case
+def test_folder_occupant():
+    """install: another game in the folder is named before anything is unpacked"""
+    # Need for Speed: Most Wanted is a 2005 game and a 2012 one, with one slug
+    recipe = {'name': 'NFS', 'slug': 'nfs', 'exe': 'speed.exe'}
+    with tempfile.TemporaryDirectory() as tmp:
+        game = os.path.join(tmp, 'nfs', 'game')
+        eq(install.folder_occupant(game, recipe), None, 'no folder yet')
+        os.makedirs(os.path.join(game, '.plumber'))
+        with open(os.path.join(game, 'install.log'), 'w') as f:
+            f.write('an earlier try')
+        os.rmdir(os.path.join(game, '.plumber'))
+        eq(install.folder_occupant(game, recipe), None, 'only the log of an earlier try')
+
+        os.makedirs(os.path.join(game, '.plumber'))
+        with open(os.path.join(game, 'speed.exe'), 'wb') as f:
+            f.write(b'MZ')
+        with open(os.path.join(game, '.plumber', 'recipe.json'), 'w') as f:
+            json.dump(recipe, f)
+        eq(install.folder_occupant(game, recipe), None, 'this same game, installed before')
+
+        with open(os.path.join(game, '.plumber', 'recipe.json'), 'w') as f:
+            json.dump({'name': 'NFS 2012', 'slug': 'nfs', 'exe': 'NFS13.exe'}, f)
+        eq(install.folder_occupant(game, recipe), 'NFS 2012', 'another game')
+
+        shutil.rmtree(os.path.join(game, '.plumber'))
+        eq(install.folder_occupant(game, recipe), 'files the installer did not put there',
+           'files from somewhere else')
+
+
+@case
+def test_uninstall_without_an_appid_takes_nothing_else():
+    """uninstall: our shortcut without an appid leaves the others and the default"""
+    # Its appid read as 0 used to match every entry without one, and
+    # CompatToolMapping "0", the Steam Play default for all other games
+    with tempfile.TemporaryDirectory() as tmp:
+        game = os.path.join(tmp, 'Games', 'nfs', 'game')
+        ours = shortcut(0x80000000, 'NFS', os.path.join(game, 'speed.exe'))
+        theirs = shortcut(0x80000000, 'Tool', '/usr/bin/tool')
+        del ours['appid'], theirs['appid']
+        other = shortcut(0x82222222, 'chiaki4deck', '/usr/bin/chiaki')
+
+        rc, out, _ = run_uninstall(tmp, game, entries={'0': ours, '1': theirs, '2': other},
+                                   config=CONFIG_WITH_DEFAULT)
+
+        eq(rc, 0, 'exit code\n%s' % out)
+        _, data, _, _ = vdf.read_shortcuts(os.path.join(si.user_config('12345678'), 'shortcuts.vdf'))
+        eq([e['AppName'] for e in data.values()], ['Tool', 'chiaki4deck'], 'the shortcuts left')
+        cfg = read(si.STEAM_ROOT, 'config', 'config.vdf').decode()
+        eq(config_surgery.get_mapping(cfg, 0), {'name': 'proton_9', 'config': '', 'priority': '75'},
+           'the Steam Play default')
+
+
+@case
+def test_purge_deletes_only_the_game_folder():
+    """uninstall: everything goes from <folder>/<slug>/game only, never elsewhere"""
+    # The uninstaller deletes the folder it sits in: a copy carried elsewhere
+    # along with its .plumber would take that folder with it
+    with tempfile.TemporaryDirectory() as tmp:
+        stray = os.path.join(tmp, 'Documents')
+        os.makedirs(stray)
+        with open(os.path.join(stray, 'mine.txt'), 'w') as f:
+            f.write('mine')
+        rc, out, fake = run_uninstall(tmp, stray, purge=True)
+
+        eq(rc, install.NOT_ITS_FOLDER, 'exit code\n%s' % out)
+        ok('ERROR: %s is not deleted whole' % stray in out, out)
+        eq(read(stray, 'mine.txt'), b'mine', 'its files')
+        eq(fake.calls, [], 'Steam never touched')
+
+    with tempfile.TemporaryDirectory() as tmp:
+        real = os.path.join(tmp, 'real')
+        os.makedirs(real)
+        os.makedirs(os.path.join(tmp, 'Games', 'nfs'))
+        link = os.path.join(tmp, 'Games', 'nfs', 'game')
+        os.symlink(real, link)
+        rc, out, _ = run_uninstall(tmp, link, purge=True)
+        eq(rc, install.NOT_ITS_FOLDER, 'a link, exit code\n%s' % out)
+        ok(os.path.isdir(real), 'what the link points at')
+
+    with tempfile.TemporaryDirectory() as tmp:
+        game = os.path.join(tmp, 'Games', 'nfs', 'game')
+        os.makedirs(os.path.join(game, '.plumber'))
+        with open(os.path.join(game, 'speed.exe'), 'wb') as f:
+            f.write(b'MZ')
+        rc, out, _ = run_uninstall(tmp, game, purge=True)
+        eq(rc, 0, 'exit code\n%s' % out)
+        ok(not os.path.exists(game), 'the game folder is gone')
+        ok(os.path.isdir(os.path.join(tmp, 'Games', 'nfs')), 'and nothing above it')
+
+
 def sh(script, *args):
     return subprocess.run(['sh', '-c', script, 'sh'] + list(args),
                           capture_output=True, text=True)
@@ -1251,7 +1404,7 @@ def test_setup_logs_what_install_py_prints():
             json.dump({'name': 'NFS', 'slug': 'nfs', 'exe': 'speed.exe'}, f)
         with open(os.path.join(bundle, 'install.py'), 'w') as f:
             f.write('import sys\n'
-                    'if "--list-users" in sys.argv:\n'
+                    'if "--list-users" in sys.argv or "--check-folder" in sys.argv:\n'
                     '    sys.exit(0)\n'
                     'print("unpacking", sys.argv[sys.argv.index("--archive") + 1])\n'
                     'raise RuntimeError("config.vdf blew up")\n')
@@ -1267,6 +1420,36 @@ def test_setup_logs_what_install_py_prints():
         log = open(os.path.join(dest, 'nfs', 'game', 'install.log')).read()
         ok('unpacking %s' % archive in log, 'what it printed: %r' % log)
         ok('RuntimeError: config.vdf blew up' in log, 'its traceback: %r' % log)
+
+
+@case
+def test_setup_stops_at_another_game():
+    """shell: setup.sh will not unpack over another game, and asks none without windows"""
+    with tempfile.TemporaryDirectory() as tmp:
+        bundle = os.path.join(tmp, 'bundle')
+        os.makedirs(bundle)
+        for name in os.listdir(HERE):
+            if name.endswith(('.py', '.sh')) and name != 'selftest.py':
+                shutil.copy(os.path.join(HERE, name), bundle)
+        with open(os.path.join(bundle, 'recipe.json'), 'w') as f:
+            json.dump({'name': 'NFS', 'slug': 'nfs', 'exe': 'speed.exe'}, f)
+        dest = os.path.join(tmp, 'Games')
+        game = os.path.join(dest, 'nfs', 'game')
+        os.makedirs(os.path.join(game, '.plumber'))
+        with open(os.path.join(game, '.plumber', 'recipe.json'), 'w') as f:
+            json.dump({'name': 'NFS 2012', 'slug': 'nfs', 'exe': 'NFS13.exe'}, f)
+        with open(os.path.join(game, 'NFS13.exe'), 'wb') as f:
+            f.write(b'MZ')
+
+        result = subprocess.run(
+            ['sh', os.path.join(bundle, 'setup.sh'), '--archive=' + os.path.join(tmp, 'game.run')],
+            env=dict(os.environ, DEST=dest, PROTON='proton_9'),
+            capture_output=True, text=True)
+
+        eq(result.returncode, 1, 'exit code:\n%s' % result.stderr)
+        ok('%s already holds NFS 2012' % game in result.stderr, result.stderr)
+        ok(not os.path.exists(os.path.join(game, 'install.log')), 'not even the log written')
+        eq(read(game, 'NFS13.exe'), b'MZ', "the other game's files")
 
 
 @case

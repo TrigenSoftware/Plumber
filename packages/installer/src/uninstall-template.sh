@@ -81,6 +81,15 @@ The game files are still on disk:
 $HERE" 2>/dev/null || true
         fi
     fi
+elif [ $RC -eq 5 ]; then
+    # install.py found the folder does not look like the game's own, and
+    # changed nothing: deleting it whole could take somebody's files along
+    have kdialog && kdialog --title "Uninstall stopped" --error \
+        "Nothing was removed.
+
+$HERE does not look like the folder the installer made for $NAME, so it is not
+deleted whole. Remove the game from Steam only, or delete its files by hand." \
+        2>/dev/null || true
 else
     have kdialog && kdialog --title "Uninstall failed" --error \
         "Could not finish. Steam may be running and refusing to close." 2>/dev/null || true
