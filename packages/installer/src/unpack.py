@@ -8,14 +8,19 @@ which the prefix has shifted, and gives up with "Damaged Zip archive". Still
 so in libarchive's master (read_zip64_eocd). zipfile finds the end records
 from the end of the file and works the shift out itself, Zip64 included.
 
-Neither of them reads Deflate64, which Windows 10 packs big folders with, so
-deflate64.py does it here; anything else zipfile has no codec for is refused
-before the first byte.
+Neither of them reads Deflate64, which Windows 10 packs big folders with.
+funzip does, and SteamOS ships it with unzip; deflate64.py stands in where it
+is missing or fails. Anything else zipfile has no codec for is refused before
+the first byte.
 """
 
+import contextlib
+import functools
 import os
 import shutil
 import struct
+import subprocess
+import threading
 import time
 import zipfile
 import zlib
@@ -34,6 +39,11 @@ if hasattr(zipfile, 'ZIP_ZSTANDARD'):
     UNPACKS.add(zipfile.ZIP_ZSTANDARD)
 METHODS = {0: 'Store', 8: 'Deflate', 9: 'Deflate64', 12: 'BZip2', 14: 'LZMA',
            93: 'Zstandard', 95: 'XZ', 97: 'WavPack', 98: 'PPMd', 99: 'AES'}
+# Six bytes of Deflate64: an 'a', then a copy of 300 by length code 285 and its
+# extra bits. Plain Deflate reads 285 as 258 and loses its place, so only a
+# Deflate64 decoder makes 301 'a's of it
+PROBE = bytes.fromhex('4b1c4d090000')
+PROBE_OUT = b'a' * 301
 
 
 class UnpackError(Exception):
@@ -168,12 +178,10 @@ def damaged(info, why):
                        'have downloaded completely.' % (info.filename, why))
 
 
-def inflate64(zf, info, write):
-    """Unpacks a Deflate64 entry, its packed bytes read straight from the
-    archive: zipfile will not even open one. Checked the way zipfile checks
-    what it unpacks, by size and CRC."""
-    import deflate64   # only here: the uninstaller's copy never unpacks
-
+@contextlib.contextmanager
+def packed(zf, info):
+    """The packed bytes of an entry read straight from the archive, for what
+    zipfile will not even open: yields read(n)."""
     with open(zf.filename, 'rb') as f:
         f.seek(info.header_offset)
         head = f.read(30)
@@ -184,7 +192,6 @@ def inflate64(zf, info, write):
         name_len, extra_len = struct.unpack('<HH', head[26:30])
         f.seek(name_len + extra_len, 1)
         left = info.compress_size
-        crc = 0
 
         def read(n):
             nonlocal left
@@ -192,11 +199,93 @@ def inflate64(zf, info, write):
             left -= len(piece)
             return piece
 
-        def out(piece):
-            nonlocal crc
-            crc = zlib.crc32(piece, crc)
-            write(piece)
+        yield read
 
+
+def local_header(crc, packed_size, size):
+    """A local header of our own to put in front of the packed bytes: no name,
+    no extra field and no data descriptor, all of which the archive's may
+    have. Sizes past 4 GiB do not fit, and funzip unpacks them right anyway."""
+    return struct.pack('<IHHHHHIIIHH', 0x04034b50, 21, 0, DEFLATE64, 0, 0, crc,
+                       packed_size & 0xFFFFFFFF, size & 0xFFFFFFFF, 0, 0)
+
+
+@functools.lru_cache(maxsize=None)
+def funzip():
+    """Info-ZIP's funzip, if it decodes Deflate64: one zip entry from stdin to
+    stdout, at the speed of C. SteamOS ships it with unzip 6.00, built with
+    USE_DEFLATE64; what is checked is that it decodes PROBE. -> path or None
+    """
+    path = shutil.which('funzip')
+    if not path:
+        return None
+    try:
+        run = subprocess.run([path], input=local_header(
+            zlib.crc32(PROBE_OUT), len(PROBE), len(PROBE_OUT)) + PROBE,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return path if run.stdout == PROBE_OUT else None
+
+
+def funzip64(path, zf, info, write):
+    """A Deflate64 entry through funzip. -> whether it came out whole
+
+    The size and the CRC decide, not the exit code: funzip says "length
+    error" about a file past 4 GiB that it unpacks right.
+    """
+    crc = 0
+    size = 0
+    with packed(zf, info) as read:
+        proc = subprocess.Popen([path], stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+        def feed():
+            try:
+                proc.stdin.write(local_header(info.CRC, info.compress_size, info.file_size))
+                while True:
+                    piece = read(CHUNK)
+                    if not piece:
+                        break
+                    proc.stdin.write(piece)
+            except OSError:
+                pass   # funzip stopped reading: what came out tells why
+            finally:
+                with contextlib.suppress(OSError):
+                    proc.stdin.close()
+
+        # Fed from a thread of its own: funzip writes as it reads, and a pipe
+        # it cannot empty would stall both ends
+        feeder = threading.Thread(target=feed, daemon=True)
+        feeder.start()
+        try:
+            while True:
+                piece = proc.stdout.read(CHUNK)
+                if not piece:
+                    break
+                crc = zlib.crc32(piece, crc)
+                size += len(piece)
+                write(piece)
+        finally:
+            proc.stdout.close()
+            proc.wait()
+            feeder.join()
+    return size == info.file_size and crc == info.CRC
+
+
+def inflate64(zf, info, write):
+    """A Deflate64 entry through the decoder of our own, checked the way
+    zipfile checks what it unpacks, by size and CRC."""
+    import deflate64   # only here: the uninstaller's copy never unpacks
+
+    crc = 0
+
+    def out(piece):
+        nonlocal crc
+        crc = zlib.crc32(piece, crc)
+        write(piece)
+
+    with packed(zf, info) as read:
         try:
             size = deflate64.inflate(read, out)
         except deflate64.Deflate64Error as exc:
@@ -224,7 +313,16 @@ def extract(zf, items, progress=None):
                         progress(done, total)
 
                 if info.compress_type == DEFLATE64:
-                    inflate64(zf, info, write)
+                    before = done
+                    tool = funzip()
+                    if not (tool and funzip64(tool, zf, info, write)):
+                        # Written again from the start by our own decoder,
+                        # which also tells a damaged entry from a funzip that
+                        # let it down
+                        dst.seek(0)
+                        dst.truncate()
+                        done = before
+                        inflate64(zf, info, write)
                 else:
                     with zf.open(info) as src:
                         while True:

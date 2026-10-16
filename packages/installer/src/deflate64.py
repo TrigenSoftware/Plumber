@@ -4,9 +4,10 @@ Deflate64 is Deflate with three changes: a 64 KiB window, distance codes 30
 and 31 that reach into it, and length code 285 carrying 16 extra bits rather
 than standing for 258. Windows 10 packs with it once a folder grows past 2 GB
 (3). zipfile and libarchive refuse it, and zlib reads it without a word into
-the wrong bytes, so the installer brings its own decoder: no dependency SteamOS
-might lack, at the price of speed - stored blocks go at the speed of copying,
-coded ones at a few MB/s.
+the wrong bytes. funzip, which SteamOS ships, does it at the speed of C, and
+unpack.py goes to it first; this decoder stands in where funzip is missing or
+gets an entry wrong. Stored blocks go at the speed of copying, coded ones at a
+few MB/s: 4.8 on a Deck.
 """
 
 CHUNK = 1 << 20

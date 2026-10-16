@@ -971,6 +971,95 @@ def test_unpack_deflate64_damage():
                 raise AssertionError('%s went unnoticed' % what)
 
 
+def fake_tool(folder, name, script):
+    """An executable shell script at `folder`/`name`. -> its path"""
+    path = os.path.join(folder, name)
+    with open(path, 'w') as f:
+        f.write('#!/bin/sh\n' + script + '\n')
+    os.chmod(path, 0o755)
+    return path
+
+
+@contextlib.contextmanager
+def only_on_path(folder):
+    """PATH is `folder` alone meanwhile, and funzip is looked for afresh."""
+    saved = os.environ.get('PATH', '')
+    os.environ['PATH'] = folder
+    unpack.funzip.cache_clear()
+    try:
+        yield
+    finally:
+        os.environ['PATH'] = saved
+        unpack.funzip.cache_clear()
+
+
+@case
+def test_funzip_is_checked_by_decoding():
+    """unpack: funzip is used only once it has decoded the Deflate64 probe"""
+    with tempfile.TemporaryDirectory() as tmp:
+        with only_on_path(tmp):
+            eq(unpack.funzip(), None, 'none on PATH')
+        # Anything that runs under the name and answers, but not with Deflate64
+        fake = fake_tool(tmp, 'funzip', 'cat')
+        with only_on_path(tmp):
+            eq(unpack.funzip(), None, 'a funzip that does not decode it')
+        real = shutil.which('funzip')
+        if real:
+            os.remove(fake)
+            os.symlink(real, fake)
+            with only_on_path(tmp):
+                eq(unpack.funzip(), fake, 'Info-ZIP funzip')
+
+
+@case
+def test_unpack_deflate64_through_funzip():
+    """unpack: with funzip there, a Deflate64 entry never reaches our decoder"""
+    if not shutil.which('funzip'):
+        return   # nothing to check it with here; the fallback has a case of its own
+    stream, data = deflate64_sample()
+    saved = unpack.inflate64
+
+    def refuse(*_args):
+        raise AssertionError('the decoder of our own was used')
+
+    unpack.funzip.cache_clear()
+    with tempfile.TemporaryDirectory() as tmp:
+        run = raw_zip(os.path.join(tmp, 'game.run'), [
+            ('Game/data.big', 9, stream, zlib.crc32(data), len(data), 0)
+        ])
+        unpack.inflate64 = refuse
+        try:
+            unpack_into(os.path.join(tmp, 'game'), run)
+        finally:
+            unpack.inflate64 = saved
+        eq(read(tmp, 'game', 'Game', 'data.big'), data, 'what funzip wrote')
+
+
+@case
+def test_unpack_deflate64_falls_back():
+    """unpack: what funzip gets wrong is written again by our own decoder"""
+    stream, data = deflate64_sample()
+    saved = unpack.funzip
+    with tempfile.TemporaryDirectory() as tmp:
+        # Swallows the entry and hands back something else, exit code 0
+        broken = fake_tool(tmp, 'funzip', 'cat > /dev/null; printf garbage')
+        run = raw_zip(os.path.join(tmp, 'game.run'), [
+            ('Game/data.big', 9, stream, zlib.crc32(data), len(data), 0)
+        ])
+        dest = os.path.join(tmp, 'game')
+        unpack.funzip = lambda: broken
+        try:
+            with unpack.open_archive(run) as zf:
+                items, _ = unpack.plan(zf, dest)
+                seen = []
+                written = unpack.extract(zf, items, progress=lambda done, total: seen.append((done, total)))
+        finally:
+            unpack.funzip = saved
+        eq(read(dest, 'Game', 'data.big'), data, 'the file, garbage gone')
+        eq(written, len(data), 'bytes counted once')
+        eq(seen[-1], (len(data), len(data)), 'the last progress')
+
+
 @case
 def test_unpack_refuses_what_it_cannot_unpack():
     """install: PPMd or a password stops it before the first byte and before Steam"""
