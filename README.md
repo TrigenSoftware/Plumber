@@ -37,17 +37,17 @@ Why everything is the way it is: [`SPEC.md`](SPEC.md).
 
 ```
 app/
-  index.ts     entry point
-  devtools.ts  in-page DevTools of the stores, development only
-  styles.css   global CSS entry
-  assets/      icons, fonts, images
-  shared/      app-wide constants, types, pure utils
-  services/    zip (central directory, Zip64), exe scoring, DLL wrappers,
-               artwork, recipe, tar + gzip, .run assembly, preflight checks
-  stores/      game, artwork, build, preflight: the wizard state
-  uikit/       presentational components and design tokens
-  blocks/      ArchivePicker, GameForm, ArtworkGrid, PreflightList, BuildPanel
-  pages/       Home
+  index.ts      entry point
+  devtools.ts   in-page DevTools of the stores, development only
+  styles.css    global CSS entry
+  assets/       icons, fonts, images
+  shared/       app-wide constants, types, pure utils
+  services/     zip (central directory, Zip64), exe scoring, DLL wrappers,
+                artwork, recipe, tar + gzip, .run assembly, preflight checks
+  stores/       game, artwork, build, preflight: the wizard state
+  uikit/        presentational components and design tokens
+  blocks/       ArchivePicker, GameForm, ArtworkGrid, PreflightList, BuildPanel
+  pages/        Home
 ```
 
 The UI is written with [nanoviews](https://github.com/TrigenSoftware/nanoviews) and [@nano_kit/store](https://nano-kit.js.org/store). The build runs in Chromium only: it streams the `.run` to disk through `showSaveFilePicker`.
