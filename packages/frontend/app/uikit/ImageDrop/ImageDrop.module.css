@@ -5,7 +5,7 @@
   align-content: start;
 }
 
-/*
+/**
  * Every frame gets the same box. The aspect ratios here run from 2:3 to 3:1, and
  * letting each frame follow its own would make one frame four times the height
  * of its neighbour. The expected size is written inside while it is empty, and
@@ -16,9 +16,11 @@
   display: grid;
   position: relative;
 
-  /* One row exactly as tall as the frame. An auto row grows to the image's own
-     height, so `height: 100%` on the preview resolved against that and a tall
-     image was cut to its middle instead of contained. */
+  /**
+   * One row exactly as tall as the frame. An auto row grows to the image's own
+   * height, so `height: 100%` on the preview resolved against that and a tall
+   * image was cut to its middle instead of contained.
+   */
   grid-template-rows: minmax(0, 1fr);
   place-items: center;
   border: 2px dashed var(--colorBorder);
@@ -30,8 +32,10 @@
   color: var(--colorTextMuted);
 }
 
-/* Over the whole frame and see-through: a click or a drop anywhere on the frame
-   lands on the input, which takes the file the way it takes one from its picker */
+/**
+ * Over the whole frame and see-through: a click or a drop anywhere on the frame
+ * lands on the input, which takes the file the way it takes one from its picker
+ */
 
 .input {
   position: absolute;
@@ -42,8 +46,10 @@
   inline-size: 100%;
 }
 
-/* The input draws nothing, so the frame shows its focus. Focus from the
-   keyboard looks like the pointer hovering, on top of the outline. */
+/**
+ * The input draws nothing, so the frame shows its focus. Focus from the
+ * keyboard looks like the pointer hovering, on top of the outline.
+ */
 
 .frame:has(.input:focus-visible) {
   outline-color: var(--colorFocusOutline);
@@ -70,7 +76,7 @@
   object-fit: contain;
 }
 
-/*
+/**
  * The head and the foot are given fixed heights so a row of drops lines up:
  * one caption wraps to two lines, another does not, and without this the
  * frames would sit at five different heights.
@@ -84,8 +90,10 @@
   justify-content: space-between;
   block-size: 2.5rem;
 
-  /* Clipped with a margin wide enough for the focus outline of the link, which
-     sits flush with the top and the right edge */
+  /**
+   * Clipped with a margin wide enough for the focus outline of the link, which
+   * sits flush with the top and the right edge
+   */
   overflow: clip;
   overflow-clip-margin: var(--sizeSpaceXs);
 }
@@ -109,8 +117,10 @@
   color: var(--colorDanger);
 }
 
-/* The remove button is drawn by the kit like every other one, at the size of
-   the note beside it: the size itself comes from the typography class. */
+/**
+ * The remove button is drawn by the kit like every other one, at the size of
+ * the note beside it: the size itself comes from the typography class.
+ */
 
 .clear {
   border: var(--sizeBorder) solid var(--colorBorder);

@@ -13,9 +13,11 @@
 }
 
 .fill {
-  /* The fill is as long as the share of the bytes written. Scaled instead, it would
-     grow from one physical side whatever the writing direction, and a box this
-     small costs nothing to lay out again */
+  /**
+   * The fill is as long as the share of the bytes written. Scaled instead, it would
+   * grow from one physical side whatever the writing direction, and a box this
+   * small costs nothing to lay out again
+   */
   /* stylelint-disable-next-line plugin/no-low-performance-animation-properties */
   transition: inline-size var(--durationSm) linear;
   background: var(--colorBrand);

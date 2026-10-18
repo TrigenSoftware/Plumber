@@ -1,7 +1,9 @@
 @import './media.css';
 
-/* Mixins: classes meant to be added to an element alongside its own class.
-   Parameters are CSS Custom Properties with defaults declared on the class. */
+/**
+ * Mixins: classes meant to be added to an element alongside its own class.
+ * Parameters are CSS Custom Properties with defaults declared on the class.
+ */
 
 .focusOutline {
   --transitionFocusOutline: outline var(--durationSm) ease;

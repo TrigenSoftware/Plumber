@@ -1,5 +1,7 @@
-/* Rows as tall as their content: a field beside a taller one, as in a row of a
-   form, keeps its control at the height of a control rather than stretching it */
+/**
+ * Rows as tall as their content: a field beside a taller one, as in a row of a
+ * form, keeps its control at the height of a control rather than stretching it
+ */
 
 .root {
   display: grid;

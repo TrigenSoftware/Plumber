@@ -11,8 +11,10 @@
   color: var(--colorTextMuted);
 }
 
-/* Over the whole zone and see-through: a click or a drop anywhere on the zone
-   lands on the input, which takes the file the way it takes one from its picker */
+/**
+ * Over the whole zone and see-through: a click or a drop anywhere on the zone
+ * lands on the input, which takes the file the way it takes one from its picker
+ */
 
 .input {
   position: absolute;
@@ -31,8 +33,10 @@
   opacity: var(--opacityDisabled);
 }
 
-/* The input draws nothing, so the zone shows its focus. Focus from the
-   keyboard looks like the pointer hovering, on top of the outline. */
+/**
+ * The input draws nothing, so the zone shows its focus. Focus from the
+ * keyboard looks like the pointer hovering, on top of the outline.
+ */
 
 .root:has(.input:focus-visible) {
   outline-color: var(--colorFocusOutline);

@@ -17,15 +17,19 @@
   font-weight: 550;
 }
 
-/* The marker is a chevron of our own: the native triangle differs from engine
-   to engine, and Safari draws it whatever list-style says */
+/**
+ * The marker is a chevron of our own: the native triangle differs from engine
+ * to engine, and Safari draws it whatever list-style says
+ */
 
 .summary::-webkit-details-marker {
   display: none;
 }
 
-/* Two borders of a square turned to point at the folded part: right while
-   folded, down once open. Its size is in em, so it follows the text. */
+/**
+ * Two borders of a square turned to point at the folded part: right while
+ * folded, down once open. Its size is in em, so it follows the text.
+ */
 
 .summary::before {
   --disclosureSizeChevron: 0.4em;
