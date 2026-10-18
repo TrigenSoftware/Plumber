@@ -5,8 +5,10 @@
   gap: var(--sizeSpace);
 }
 
-/* A row per place, top to bottom: the steps get the whole width, so the names
-   to look for on screen stay on their line rather than wrapping onto their own */
+/**
+ * A row per place, top to bottom: the steps get the whole width, so the names
+ * to look for on screen stay on their line rather than wrapping onto their own
+ */
 
 .stage {
   display: grid;

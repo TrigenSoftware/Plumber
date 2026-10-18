@@ -10,8 +10,10 @@
   cursor: default;
 }
 
-/* One line of the text tall, so the control sits in the middle of the text's
-   first line whatever its own size and however the text wraps */
+/**
+ * One line of the text tall, so the control sits in the middle of the text's
+ * first line whatever its own size and however the text wraps
+ */
 
 .target {
   display: flex;
@@ -28,8 +30,10 @@
   color: var(--colorTextMuted);
 }
 
-/* The control dims itself, so only the text follows it here: dimming the
-   whole field as well would dim a disabled checkbox twice. */
+/**
+ * The control dims itself, so only the text follows it here: dimming the
+ * whole field as well would dim a disabled checkbox twice.
+ */
 
 .root:has(:disabled) .text,
 .root:has(:disabled) .description {

@@ -15,8 +15,10 @@
   align-items: center;
 }
 
-/* The lead-in sits as far from the steps as they sit from one another: it is
-   the first line of the list, not a section of its own */
+/**
+ * The lead-in sits as far from the steps as they sit from one another: it is
+ * the first line of the list, not a section of its own
+ */
 
 .instructions {
   display: grid;

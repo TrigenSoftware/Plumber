@@ -18,8 +18,9 @@ PROC_RE = re.compile(r'^(steam|steamwebhelper|steamerrorreporter|steam-runtime-.
 
 
 def steam_procs():
-    out = subprocess.run(['ps', '-eo', 'pid,comm', '--no-headers'],
-                         capture_output=True, text=True).stdout
+    out = subprocess.run(
+        ['ps', '-eo', 'pid,comm', '--no-headers'],
+        capture_output=True, text=True).stdout
     hits = []
     for line in out.splitlines():
         parts = line.split(None, 1)
@@ -55,9 +56,10 @@ def shutdown(timeout=90, log=print):
 
 
 def start(log=print):
-    subprocess.Popen(['steam'], stdout=subprocess.DEVNULL,
-                     stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
-                     start_new_session=True)
+    subprocess.Popen(
+        ['steam'], stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
+        start_new_session=True)
     t0 = time.time()
     while time.time() - t0 < 60:
         if registry_steam_pid():

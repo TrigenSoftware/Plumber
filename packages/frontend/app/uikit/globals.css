@@ -26,8 +26,10 @@ a:focus {
   color: var(--colorBrandLight);
 }
 
-/* A class with its own display beats the browser's [hidden] rule, so blocks
-   that lay themselves out with grid or flex stay visible when hidden. */
+/**
+ * A class with its own display beats the browser's [hidden] rule, so blocks
+ * that lay themselves out with grid or flex stay visible when hidden.
+ */
 
 [hidden] {
   display: none !important;

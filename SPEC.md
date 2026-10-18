@@ -210,10 +210,10 @@ The fallback chain: `kdialog` → `zenity` (unlikely to be there, the system is 
 This section was rewritten after the first build: **three of the original decisions turned out wrong**, and all three in the direction of simpler.
 
 ```
-[0 .. 8191]        header: an sh script, padded with comments to exactly 8 KB.
-                   It carries the number of meta blocks
-[8192 .. ...]      meta.tar.gz, padded with zeros to a multiple of 8 KB
-[then .. EOF]      the user's archive, verbatim
+[0 .. 8191]         header: an sh script, padded with comments to exactly 8 KB.
+                    It carries the number of meta blocks
+[8192 .. ...]       meta.tar.gz, padded with zeros to a multiple of 8 KB
+[then .. EOF]       the user's archive, verbatim
 ```
 
 Extraction:
@@ -312,38 +312,38 @@ There is no Proton version here: it is asked for at install time (2.8). `user_da
 
 The order:
 
-0. Questions through `kdialog` (see 2.8): where to install (`--getexistingdirectory`, default `~/Games`) and which Proton (`--menu` from the versions actually installed). Without dialogs: defaults, and a note in the log. If `<dest>/<slug>/game/` already holds another game or files the installer did not put there, it asks before a byte is written: choose another folder, install there anyway, or cancel. Two games can share a slug (Need for Speed: Most Wanted is a 2005 game and a 2012 one), and the second one unpacked over the first breaks it. Without dialogs the answer is no
-1. Find the Steam root and `userdata/<id>/` (see 5.1.1). This step no longer depends on a running client: every clue is read from disk
-2. Unpack the archive into `<dest>/<slug>/game/` as it is, with Python's `zipfile` (`unpack.py`); `bsdtar` cannot open archives over 4 GiB out of a `.run` (3). No `--strip-components`: the path to the exe comes from the central directory together with its nesting, so it agrees by construction. **Verified:** `bsdtar -x -f <zip> -C <dest>` unpacked the test archive without a single loss: 1438 files and 126 folders, and a file-by-file comparison with the central directory matched. The archive carries **explicit folder entries**, and `bsdtar` reproduces them
-3. `mkdir -p` for the folders from the recipe (empty folders for saves). **Saves on reinstall.** Portable games keep them **next to the exe** rather than in the prefix: for the test game that is `SAVES/<profile>/` and `SAVES/Settings.ini` with the graphics settings.
+0.  Questions through `kdialog` (see 2.8): where to install (`--getexistingdirectory`, default `~/Games`) and which Proton (`--menu` from the versions actually installed). Without dialogs: defaults, and a note in the log. If `<dest>/<slug>/game/` already holds another game or files the installer did not put there, it asks before a byte is written: choose another folder, install there anyway, or cancel. Two games can share a slug (Need for Speed: Most Wanted is a 2005 game and a 2012 one), and the second one unpacked over the first breaks it. Without dialogs the answer is no
+1.  Find the Steam root and `userdata/<id>/` (see 5.1.1). This step no longer depends on a running client: every clue is read from disk
+2.  Unpack the archive into `<dest>/<slug>/game/` as it is, with Python's `zipfile` (`unpack.py`); `bsdtar` cannot open archives over 4 GiB out of a `.run` (3). No `--strip-components`: the path to the exe comes from the central directory together with its nesting, so it agrees by construction. **Verified:** `bsdtar -x -f <zip> -C <dest>` unpacked the test archive without a single loss: 1438 files and 126 folders, and a file-by-file comparison with the central directory matched. The archive carries **explicit folder entries**, and `bsdtar` reproduces them
+3.  `mkdir -p` for the folders from the recipe (empty folders for saves). **Saves on reinstall.** Portable games keep them **next to the exe** rather than in the prefix: for the test game that is `SAVES/<profile>/` and `SAVES/Settings.ini` with the graphics settings.
 
-   Verified by installing over an existing copy, and the hole turned out narrower than it looked:
+    Verified by installing over an existing copy, and the hole turned out narrower than it looked:
 
-   | what | fate | why |
-   |---|---|---|
-   | `SAVES/<profile>/` | **survived** | the archive has no such path, so unpacking does not touch it |
-   | `SAVES/Settings.ini` | **overwritten** | the archive holds the factory one, 120 B against the working 549 B |
+    | what | fate | why |
+    |---|---|---|
+    | `SAVES/<profile>/` | **survived** | the archive has no such path, so unpacking does not touch it |
+    | `SAVES/Settings.ini` | **overwritten** | the archive holds the factory one, 120 B against the working 549 B |
 
-   So unpacking overwrites exactly what the archive contains. The player's profile survives a reinstall on its own; what gets lost are only the files the game inherited from the archive and then rewrote for itself: graphics settings, language, resolution. Annoying, and nobody notices.
+    So unpacking overwrites exactly what the archive contains. The player's profile survives a reinstall on its own; what gets lost are only the files the game inherited from the archive and then rewrote for itself: graphics settings, language, resolution. Annoying, and nobody notices.
 
-   **Done: skipping by the list in the recipe.** The recipe got a `user_data` field (`["SAVES"]` for the test game), and unpacking skips those folders **if there is already something inside**. Verified by installing over an existing copy: the graphics settings stayed the working ones (549 B) instead of rolling back to the factory ones (120 B). The same list serves the second purpose from 7.6: `mkdir -p` for empty save folders on a clean install.
+    **Done: skipping by the list in the recipe.** The recipe got a `user_data` field (`["SAVES"]` for the test game), and unpacking skips those folders **if there is already something inside**. Verified by installing over an existing copy: the graphics settings stayed the working ones (549 B) instead of rolling back to the factory ones (120 B). The same list serves the second purpose from 7.6: `mkdir -p` for empty save folders on a clean install.
 
-   While `bsdtar` did the unpacking, its flags did this, and both were verified; now the same rule lives in `unpack.plan`:
+    While `bsdtar` did the unpacking, its flags did this, and both were verified; now the same rule lives in `unpack.plan`:
 
-   ```sh
-   bsdtar -x -f "$RUN" -C "$DEST" --exclude '*/SAVES/*'   # skip
-   bsdtar -x -k -f "$RUN" -C "$DEST"                      # do not overwrite
-   ```
+    ```sh
+    bsdtar -x -f "$RUN" -C "$DEST" --exclude '*/SAVES/*'   # skip
+    bsdtar -x -k -f "$RUN" -C "$DEST"                      # do not overwrite
+    ```
 
-   `--exclude` is the more precise one: `-k` would protect everything that exists, while on a game update the outdated files are exactly what has to be overwritten. The folders to skip come from the same list in the recipe that 7.6 already planned for `mkdir -p` of empty save folders: one list for two jobs. Skipping only makes sense when installing into a folder that is not empty.
+    `--exclude` is the more precise one: `-k` would protect everything that exists, while on a game update the outdated files are exactly what has to be overwritten. The folders to skip come from the same list in the recipe that 7.6 already planned for `mkdir -p` of empty save folders: one list for two jobs. Skipping only makes sense when installing into a folder that is not empty.
 
-   `--purge` stays what it is: it removes the folder entirely and honestly warns how many files in `SAVES/` it will destroy. `[?]` The step may be redundant: a zip stores folders as separate entries, so an empty folder arrives on its own. The test archive could not show it: all 126 of its folders contain files
-4. **`steam -shutdown`**, wait for the process to exit, with a timeout. If it does not exit, say so and leave without touching anything
-5. Back up `shortcuts.vdf` and `config.vdf` next to them, with a timestamp
-6. Add an entry to `shortcuts.vdf`: `Exe` = the full path to the exe in quotes, `AppName` = the name, `StartDir` = the game folder
-7. Compute the appid: CRC32 of `Exe + AppName`, high bit set
-8. Write the `CompatToolMapping` for this appid into `config.vdf`, surgically, see 5.2
-9. Lay out the artwork in `userdata/<id>/config/grid/` under names derived from the appid
+    `--purge` stays what it is: it removes the folder entirely and honestly warns how many files in `SAVES/` it will destroy. `[?]` The step may be redundant: a zip stores folders as separate entries, so an empty folder arrives on its own. The test archive could not show it: all 126 of its folders contain files
+4.  **`steam -shutdown`**, wait for the process to exit, with a timeout. If it does not exit, say so and leave without touching anything
+5.  Back up `shortcuts.vdf` and `config.vdf` next to them, with a timestamp
+6.  Add an entry to `shortcuts.vdf`: `Exe` = the full path to the exe in quotes, `AppName` = the name, `StartDir` = the game folder
+7.  Compute the appid: CRC32 of `Exe + AppName`, high bit set
+8.  Write the `CompatToolMapping` for this appid into `config.vdf`, surgically, see 5.2
+9.  Lay out the artwork in `userdata/<id>/config/grid/` under names derived from the appid
 10. Start Steam again
 11. **Wait until Steam rewrites `shortcuts.vdf`, and check that the entry is in place** (5.1.0). Until that moment the contents of the file mean nothing
 12. `install.log` is not a step at the end: `setup.sh` writes it as the install goes (see "An install that fails halfway" below)
@@ -605,15 +605,15 @@ Scoring, not filtering: each candidate gets a weight, and the list is sorted by 
 **Penalty −100. Definitely not the game:**
 
 ```
-uninstallers     unins*, uninst*, uninstall*, Uninstaller*
-runtimes         vcredist*, vc_redist*, dxsetup, dxwebsetup, directx*,
-                 dotnetfx*, ndp4*, ndp45*, oalinst, openal*, PhysX*,
-                 xnafx*, wmfdist*, gfwlivesetup, msiexec
-crash reporters  UnityCrashHandler32, UnityCrashHandler64, CrashReportClient,
-                 CrashReporter, CrashSender*, crashpad_handler, BsSndRpt,
-                 BugSplat*, sendreport
-helpers          UnrealCEFSubProcess, QtWebEngineProcess, EpicWebHelper,
-                 EOSBootstrapper, GalaxyClient*, notification_helper
+uninstallers      unins*, uninst*, uninstall*, Uninstaller*
+runtimes          vcredist*, vc_redist*, dxsetup, dxwebsetup, directx*,
+                  dotnetfx*, ndp4*, ndp45*, oalinst, openal*, PhysX*,
+                  xnafx*, wmfdist*, gfwlivesetup, msiexec
+crash reporters   UnityCrashHandler32, UnityCrashHandler64, CrashReportClient,
+                  CrashReporter, CrashSender*, crashpad_handler, BsSndRpt,
+                  BugSplat*, sendreport
+helpers           UnrealCEFSubProcess, QtWebEngineProcess, EpicWebHelper,
+                  EOSBootstrapper, GalaxyClient*, notification_helper
 ```
 
 **Penalty −60. A redistributables folder in the path** (a match on any segment):
@@ -651,10 +651,10 @@ The title of the game is known at ranking time: it is prefilled from the name of
 **The first check on a real archive passed.** Need for Speed: Most Wanted, 1564 files, four `.exe`:
 
 ```
-  90  speed.exe               +40 looks like the title, +30 root, +20 size
-  30  shell_inst.exe          +30 root
-  30  safemode_inst.exe       +30 root
- -90  UNINSTALL/unins000.exe  -100 not a game, +10 size
+  +90  speed.exe               +40 looks like the title, +30 root, +20 size
+  +30  shell_inst.exe          +30 root
+  +30  safemode_inst.exe       +30 root
+  -90  UNINSTALL/unins000.exe  -100 not a game, +10 size
 ```
 
 The default is guessed, with a threefold lead. But two utilities scored 30 each only because they sit at the root: before the patterns were fixed (above) they got no penalty at all. On an archive where the real exe sits in a subfolder and does not look like the title, such a pair could overtake it.
@@ -834,12 +834,12 @@ Unpack the archive anywhere, put `recipe.json` next to it, and debug on live dat
 
 **Stage 1: the installer.** It gives a working thing: a script that installs a game already today.
 
-1. ~~`vdf.py` **read-only**~~: **done.** Both parsers are written and were run on copies of the live files. The formats of `shortcuts.vdf` and `CompatToolMapping` were taken from a real machine, the results are in 5.2
-2. ~~Set Proton through the UI~~: **not needed for question 3:** the Deck already had three `CompatToolMapping` entries, and the format is visible from them. The step stays useful as a reference for what **Steam itself** writes when a shortcut is added through "Add a Non-Steam Game": the existing entries were made by a third-party tool
-3. `vdf.py` for writing, shutting Steam down, backups: **the `shortcuts.vdf` writer is done.** The key check is **a byte-for-byte round-trip**. A live file was read, serialized back and compared byte by byte: 3952 B → 3952 B, a full match. That proves the format is understood whole, with no "almost understood" places, and that a rewrite loses nothing. The key order holds by itself: `dict` is ordered in Python 3.7+.
+1.  ~~`vdf.py` **read-only**~~: **done.** Both parsers are written and were run on copies of the live files. The formats of `shortcuts.vdf` and `CompatToolMapping` were taken from a real machine, the results are in 5.2
+2.  ~~Set Proton through the UI~~: **not needed for question 3:** the Deck already had three `CompatToolMapping` entries, and the format is visible from them. The step stays useful as a reference for what **Steam itself** writes when a shortcut is added through "Add a Non-Steam Game": the existing entries were made by a third-party tool
+3.  `vdf.py` for writing, shutting Steam down, backups: **the `shortcuts.vdf` writer is done.** The key check is **a byte-for-byte round-trip**. A live file was read, serialized back and compared byte by byte: 3952 B → 3952 B, a full match. That proves the format is understood whole, with no "almost understood" places, and that a rewrite loses nothing. The key order holds by itself: `dict` is ordered in Python 3.7+.
 
-   The technique is worth remembering and repeating for `config.vdf` **before** the first write into it: if the round-trip of the text KeyValues does not match byte for byte, the live file must not be written to under any circumstances (the risk from 2.2)
-4. `setup.sh` as a whole: `kdialog`, unpacking, appid, artwork
+    The technique is worth remembering and repeating for `config.vdf` **before** the first write into it: if the round-trip of the text KeyValues does not match byte for byte, the live file must not be written to under any circumstances (the risk from 2.2)
+4.  `setup.sh` as a whole: `kdialog`, unpacking, appid, artwork
 
 **Debug step 3 on copies only.** Copy `shortcuts.vdf` and `config.vdf` into a separate folder and run the parser on them until there is confidence. `config.vdf` holds every client setting, and the first mistake in writing to the live file costs a Steam reinstall. The backup inside the script is a safety net for the user; development needs isolation.
 

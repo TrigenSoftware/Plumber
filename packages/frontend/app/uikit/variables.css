@@ -1,5 +1,7 @@
-/* Design tokens. Named (type)(Name)(Variant)? where type is
-   font | color | size | duration | opacity | shadow. */
+/**
+ * Design tokens. Named (type)(Name)(Variant)? where type is
+ * font | color | size | duration | opacity | shadow.
+ */
 
 :root {
   /* fonts */
@@ -54,7 +56,9 @@
     0 1px 2px light-dark(oklch(0% 0 0deg / 0.12), oklch(0% 0 0deg / 0.3)),
     0 4px 16px light-dark(oklch(0% 0 0deg / 0.08), oklch(0% 0 0deg / 0.2));
 
-  /* The scheme the system asks for, unless a host forces one on the root, as
-     the Storybook toolbar does. Native controls follow it too. */
+  /**
+   * The scheme the system asks for, unless a host forces one on the root, as
+   * the Storybook toolbar does. Native controls follow it too.
+   */
   color-scheme: light dark;
 }
