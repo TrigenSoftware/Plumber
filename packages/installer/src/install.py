@@ -55,11 +55,13 @@ def progress(pct=None, text=None):
         return
     try:
         if pct is not None:
-            subprocess.run([QDBUS] + PROGRESS_REF.split() + ['Set', '', 'value', str(pct)],
-                           capture_output=True, timeout=5)
+            subprocess.run(
+                [QDBUS] + PROGRESS_REF.split() + ['Set', '', 'value', str(pct)],
+                capture_output=True, timeout=5)
         if text is not None:
-            subprocess.run([QDBUS] + PROGRESS_REF.split() + ['setLabelText', text],
-                           capture_output=True, timeout=5)
+            subprocess.run(
+                [QDBUS] + PROGRESS_REF.split() + ['setLabelText', text],
+                capture_output=True, timeout=5)
     except Exception:
         pass
 
@@ -104,8 +106,9 @@ def system_line():
     except OSError:
         info = {}
     words = [info[k].strip('"') for k in ('NAME', 'VERSION_ID', 'BUILD_ID') if k in info]
-    return '%s, Python %s' % (' '.join(words) or platform.system(),
-                              platform.python_version())
+    return '%s, Python %s' % (
+        ' '.join(words) or platform.system(),
+        platform.python_version())
 
 
 def main(argv=None):
@@ -403,8 +406,9 @@ def unpack_progress():
         if now - last[0] < 0.5 and done < total:
             return
         last[0] = now
-        progress(3 + 77 * done // max(total, 1),
-                 'Extracting: %s of %s' % (unpack.human(done), unpack.human(total)))
+        progress(
+            3 + 77 * done // max(total, 1),
+            'Extracting: %s of %s' % (unpack.human(done), unpack.human(total)))
     return report
 
 
@@ -422,8 +426,9 @@ def install_uninstaller(game_dir, recipe_path, log=print):
 
     # copyfile, not copy2: meta comes with zero mtimes (see install_art), and
     # an uninstall.run dated 1970 looks broken in the file manager
-    for name in ('install.py', 'steam_install.py', 'steamctl.py', 'unpack.py',
-                 'vdf.py', 'config_surgery.py'):
+    for name in (
+            'install.py', 'steam_install.py', 'steamctl.py', 'unpack.py',
+            'vdf.py', 'config_surgery.py'):
         src = os.path.join(here, name)
         if os.path.isfile(src):
             shutil.copyfile(src, os.path.join(lib, name))
@@ -497,8 +502,9 @@ def do_uninstall(uid, appid, exe_quoted, a, recipe):
     if a.purge:
         pfx = os.path.join(si.STEAM_ROOT, 'steamapps', 'compatdata', str(appid))
         # portable games keep their saves next to the exe - warn about it
-        saves = [os.path.join(r, f) for r, _, fs in os.walk(gd)
-                 for f in fs if os.sep + 'SAVES' + os.sep in os.path.join(r, f)]
+        saves = [
+            os.path.join(r, f) for r, _, fs in os.walk(gd)
+            for f in fs if os.sep + 'SAVES' + os.sep in os.path.join(r, f)]
         if saves:
             log('  WARNING: %d files in SAVES/ inside the game folder - they '
                 'will be deleted with it' % len(saves))

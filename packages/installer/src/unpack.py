@@ -37,12 +37,14 @@ RESERVE = 2 * 10 ** 9
 DEFLATE64 = 9
 # What the entries can be packed with: zipfile's codecs, Zstandard where the
 # Python has it (3.14), and Deflate64 by way of deflate64.py
-UNPACKS = {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED, zipfile.ZIP_BZIP2,
-           zipfile.ZIP_LZMA, DEFLATE64}
+UNPACKS = {
+    zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED, zipfile.ZIP_BZIP2,
+    zipfile.ZIP_LZMA, DEFLATE64}
 if hasattr(zipfile, 'ZIP_ZSTANDARD'):
     UNPACKS.add(zipfile.ZIP_ZSTANDARD)
-METHODS = {0: 'Store', 8: 'Deflate', 9: 'Deflate64', 12: 'BZip2', 14: 'LZMA',
-           93: 'Zstandard', 95: 'XZ', 97: 'WavPack', 98: 'PPMd', 99: 'AES'}
+METHODS = {
+    0: 'Store', 8: 'Deflate', 9: 'Deflate64', 12: 'BZip2', 14: 'LZMA',
+    93: 'Zstandard', 95: 'XZ', 97: 'WavPack', 98: 'PPMd', 99: 'AES'}
 # Six bytes of Deflate64: an 'a', then a copy of 300 by length code 285 and its
 # extra bits. Plain Deflate reads 285 as 258 and loses its place, so only a
 # Deflate64 decoder makes 301 'a's of it
@@ -62,8 +64,9 @@ def open_archive(path):
     try:
         return zipfile.ZipFile(path)
     except (OSError, zipfile.BadZipFile) as exc:
-        raise UnpackError('The game archive cannot be read (%s). The installer '
-                          'may not have downloaded completely.' % exc) from exc
+        raise UnpackError(
+            'The game archive cannot be read (%s). The installer '
+            'may not have downloaded completely.' % exc) from exc
 
 
 def relative_path(info):
@@ -79,8 +82,9 @@ def relative_path(info):
         name = name.encode('cp437').decode('utf-8', 'surrogateescape')
     parts = [p for p in name.replace('\\', '/').split('/') if p not in ('', '.')]
     if '..' in parts:
-        raise UnpackError('The archive has a path that leads out of the game '
-                          'folder: %s' % info.filename)
+        raise UnpackError(
+            'The archive has a path that leads out of the game '
+            'folder: %s' % info.filename)
     return os.path.join(*parts) if parts else ''
 
 
@@ -136,14 +140,16 @@ def check_methods(items):
         if is_dir:
             continue
         if info.flag_bits & 0x1:
-            raise UnpackError('%s is password-protected, and the installer cannot '
-                              'unpack it. Zip the game folder again without a '
-                              'password.' % info.filename)
+            raise UnpackError(
+                '%s is password-protected, and the installer cannot '
+                'unpack it. Zip the game folder again without a '
+                'password.' % info.filename)
         if info.compress_type not in UNPACKS:
-            raise UnpackError('%s is packed with %s, which the installer cannot '
-                              'unpack. Zip the game folder again: right-click it '
-                              'and choose Compress to → ZIP File.'
-                              % (info.filename, method_name(info.compress_type)))
+            raise UnpackError(
+                '%s is packed with %s, which the installer cannot '
+                'unpack. Zip the game folder again: right-click it '
+                'and choose Compress to → ZIP File.'
+                % (info.filename, method_name(info.compress_type)))
 
 
 def blocks(size):
@@ -173,15 +179,17 @@ def check_space(items, dest):
         probe = os.path.dirname(probe)
     free = shutil.disk_usage(probe).free
     if need + RESERVE > free:
-        raise UnpackError('Not enough free space: the game needs %s, and %s has '
-                          'to stay free for SteamOS and Steam. The drive has %s.'
-                          % (human(need), human(RESERVE), human(free)))
+        raise UnpackError(
+            'Not enough free space: the game needs %s, and %s has '
+            'to stay free for SteamOS and Steam. The drive has %s.'
+            % (human(need), human(RESERVE), human(free)))
     return need, free
 
 
 def damaged(info, why):
-    return UnpackError('%s is damaged in the archive (%s). The installer may not '
-                       'have downloaded completely.' % (info.filename, why))
+    return UnpackError(
+        '%s is damaged in the archive (%s). The installer may not '
+        'have downloaded completely.' % (info.filename, why))
 
 
 @contextlib.contextmanager
@@ -212,8 +220,9 @@ def local_header(crc, packed_size, size):
     """A local header of our own to put in front of the packed bytes: no name,
     no extra field and no data descriptor, all of which the archive's may
     have. Sizes past 4 GiB do not fit, and funzip unpacks them right anyway."""
-    return struct.pack('<IHHHHHIIIHH', 0x04034b50, 21, 0, DEFLATE64, 0, 0, crc,
-                       packed_size & 0xFFFFFFFF, size & 0xFFFFFFFF, 0, 0)
+    return struct.pack(
+        '<IHHHHHIIIHH', 0x04034b50, 21, 0, DEFLATE64, 0, 0, crc,
+        packed_size & 0xFFFFFFFF, size & 0xFFFFFFFF, 0, 0)
 
 
 @functools.lru_cache(maxsize=None)
@@ -337,13 +346,15 @@ def extract(zf, items, progress=None):
                                 break
                             write(piece)
         except OSError as exc:
-            raise UnpackError('Cannot unpack %s: %s.'
-                              % (info.filename, exc.strerror or exc)) from exc
+            raise UnpackError(
+                'Cannot unpack %s: %s.'
+                % (info.filename, exc.strerror or exc)) from exc
         except (zipfile.BadZipFile, zlib.error, EOFError) as exc:
             raise damaged(info, exc) from exc
         except NotImplementedError as exc:
-            raise UnpackError('%s is packed in a way this installer cannot '
-                              'unpack (%s).' % (info.filename, exc)) from exc
+            raise UnpackError(
+                '%s is packed in a way this installer cannot '
+                'unpack (%s).' % (info.filename, exc)) from exc
         try:
             stamp = time.mktime(info.date_time + (0, 0, -1))
             os.utime(target, (stamp, stamp))

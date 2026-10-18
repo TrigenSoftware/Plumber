@@ -72,7 +72,7 @@ ask_dir() {
                 --getexistingdirectory "$_def" 2>/dev/null || echo "$_def"
     elif have zenity; then
         zenity --file-selection --directory --title="Where to install $NAME" \
-               --filename="$_def" 2>/dev/null || echo "$_def"
+                --filename="$_def" 2>/dev/null || echo "$_def"
     elif [ -t 0 ]; then
         printf 'Install to [%s]: ' "$_def" >&2
         read -r _a </dev/tty; echo "${_a:-$_def}"
@@ -105,8 +105,8 @@ EOF
                 "$@" 2>/dev/null || echo "$_first"
     elif have zenity; then
         zenity --list --title "Proton version" --text "Run $NAME with:" \
-               --column "tag" --column "Version" --hide-column=1 --print-column=1 \
-               "$@" 2>/dev/null || echo "$_first"
+                --column "tag" --column "Version" --hide-column=1 --print-column=1 \
+                "$@" 2>/dev/null || echo "$_first"
     else
         echo "$_first"
     fi
@@ -179,9 +179,10 @@ common, and the other game could stop working." \
             --yes-label "Choose another folder" --no-label "Install there anyway" \
             2>/dev/null || _s=$?
         case $_s in
-            0) DEST=$(ask_dir "$DEST")
-               [ -n "$DEST" ] || die "no folder selected"
-               GAMEDIR="$DEST/$SLUG/game" ;;
+            0)
+                DEST=$(ask_dir "$DEST")
+                [ -n "$DEST" ] || die "no folder selected"
+                GAMEDIR="$DEST/$SLUG/game" ;;
             1) break ;;
             *) exit 0 ;;
         esac

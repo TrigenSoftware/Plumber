@@ -79,9 +79,10 @@ def fake_steam(tmp, users=('12345678',), accounts=None):
     if accounts:
         body = ''
         for uid, (persona, stamp, auto) in accounts.items():
-            body += ('\t"%d"\n\t{\n\t\t"PersonaName"\t\t"%s"\n'
-                     '\t\t"Timestamp"\t\t"%d"\n\t\t"AutoLogin"\t\t"%s"\n\t}\n'
-                     % (int(uid) + si.STEAMID64_BASE, persona, stamp, '1' if auto else '0'))
+            body += (
+                '\t"%d"\n\t{\n\t\t"PersonaName"\t\t"%s"\n'
+                '\t\t"Timestamp"\t\t"%d"\n\t\t"AutoLogin"\t\t"%s"\n\t}\n'
+                % (int(uid) + si.STEAMID64_BASE, persona, stamp, '1' if auto else '0'))
         with open(os.path.join(root, 'config', 'loginusers.vdf'), 'w') as f:
             f.write('"users"\n{\n%s}\n' % body)
 
@@ -154,8 +155,9 @@ def test_shortcuts_round_trip():
         path = os.path.join(tmp, 'shortcuts.vdf')
         data = {
             '0': shortcut(0x81111111, 'Chrome', '/usr/bin/chrome'),
-            '1': shortcut(0x8fabcdef, 'Need for Speed: Most Wanted',
-                          '/home/deck/Games/nfsmw/game/speed.exe')
+            '1': shortcut(
+                0x8fabcdef, 'Need for Speed: Most Wanted',
+                '/home/deck/Games/nfsmw/game/speed.exe')
         }
         vdf.write_shortcuts(path, data)
         first = open(path, 'rb').read()
@@ -236,8 +238,9 @@ def test_mapping_added_to_existing_block():
     """config.vdf: an entry is added and nothing else moves"""
     out = config_surgery.set_mapping(CONFIG_WITH_CTM, 2411661295, 'proton_9')
 
-    eq(config_surgery.get_mapping(out, 2411661295),
-       {'name': 'proton_9', 'config': '', 'priority': '250'}, 'the new entry')
+    eq(
+        config_surgery.get_mapping(out, 2411661295),
+        {'name': 'proton_9', 'config': '', 'priority': '250'}, 'the new entry')
     ok('"KeepEverything"\t\t"1"' in out, 'unrelated key untouched')
     ok(config_surgery.get_mapping(out, 3786021133) is not None, 'existing entry kept')
 
@@ -252,8 +255,9 @@ def test_mapping_block_is_created_when_absent():
 
     out = config_surgery.set_mapping(CONFIG_WITHOUT_CTM, 2411661295, 'proton_9')
 
-    eq(config_surgery.get_mapping(out, 2411661295),
-       {'name': 'proton_9', 'config': '', 'priority': '250'}, 'the entry')
+    eq(
+        config_surgery.get_mapping(out, 2411661295),
+        {'name': 'proton_9', 'config': '', 'priority': '250'}, 'the entry')
     ok('"SteamID"\t\t"76561197972611406"' in out, 'nested block untouched')
     eq(out.count('{'), out.count('}'), 'braces balanced')
 
@@ -304,8 +308,9 @@ def test_path_is_found_in_any_case():
 
     bare = CONFIG_WITHOUT_CTM.replace('"Valve"', '"valve"').replace('"Steam"', '"steam"')
     out = config_surgery.set_mapping(bare, 2411661295, 'proton_9')
-    eq(config_surgery.get_mapping(out, 2411661295)['name'], 'proton_9',
-       'a block made in a lower-case path')
+    eq(
+        config_surgery.get_mapping(out, 2411661295)['name'], 'proton_9',
+        'a block made in a lower-case path')
 
 
 @case
@@ -319,9 +324,11 @@ def test_a_value_is_not_a_block():
     out = config_surgery.set_mapping(text, 2411661295, 'proton_9')
 
     # Read back by the parser, not by the search under test
-    eq(vdf.find_path(vdf.text_loads(out), 'InstallConfigStore', 'Software', 'Valve',
-                     'Steam', 'CompatToolMapping', '2411661295', 'name'),
-       'proton_9', 'the entry where the client reads it')
+    eq(
+        vdf.find_path(
+            vdf.text_loads(out), 'InstallConfigStore', 'Software', 'Valve',
+            'Steam', 'CompatToolMapping', '2411661295', 'name'),
+        'proton_9', 'the entry where the client reads it')
 
 
 # ------------------------------------------------------------- DLL overrides
@@ -334,13 +341,16 @@ def test_wrappers_come_from_the_recipe():
         for name in ('speed.exe', 'dinput8.dll', 'server.dll'):
             open(os.path.join(tmp, name), 'w').close()
 
-        eq(si.wrappers_from({'dll_overrides': ['dinput8']}, exe, log=quiet),
-           ['dinput8'], 'an explicit list is used as given')
-        eq(si.wrappers_from({'dll_overrides': []}, exe, log=quiet),
-           [], 'an empty list overrides nothing')
+        eq(
+            si.wrappers_from({'dll_overrides': ['dinput8']}, exe, log=quiet),
+            ['dinput8'], 'an explicit list is used as given')
+        eq(
+            si.wrappers_from({'dll_overrides': []}, exe, log=quiet),
+            [], 'an empty list overrides nothing')
         # A bundle built before the field existed has to install as it always did.
-        eq(si.wrappers_from({}, exe, log=quiet),
-           ['dinput8'], 'no field falls back to detection')
+        eq(
+            si.wrappers_from({}, exe, log=quiet),
+            ['dinput8'], 'no field falls back to detection')
 
 
 @case
@@ -362,10 +372,12 @@ def test_detect_wrappers_looks_only_beside_the_exe():
 @case
 def test_launch_options():
     """overrides: the launch option is the line that fixed the live game"""
-    eq(si.launch_options_for(['dinput8']),
-       'WINEDLLOVERRIDES="dinput8=n,b" %command%', 'one wrapper')
-    eq(si.launch_options_for(['dinput8', 'd3d9']),
-       'WINEDLLOVERRIDES="dinput8,d3d9=n,b" %command%', 'two wrappers')
+    eq(
+        si.launch_options_for(['dinput8']),
+        'WINEDLLOVERRIDES="dinput8=n,b" %command%', 'one wrapper')
+    eq(
+        si.launch_options_for(['dinput8', 'd3d9']),
+        'WINEDLLOVERRIDES="dinput8,d3d9=n,b" %command%', 'two wrappers')
     eq(si.launch_options_for([]), '', 'nothing to override')
 
 
@@ -396,8 +408,9 @@ def test_replacing_a_shortcut_keeps_what_it_does_not_set():
         uid = '12345678'
         exe = '/games/speed.exe'
 
-        first = si.build_entry(0x8fabcdef, 'NFS', exe,
-                               icon='/grid/icon.png', launch_options='OLD %command%')
+        first = si.build_entry(
+            0x8fabcdef, 'NFS', exe,
+            icon='/grid/icon.png', launch_options='OLD %command%')
         si.add_shortcut(uid, first, log=quiet)
 
         again = si.build_entry(0x8fabcdef, 'NFS', exe)
@@ -452,18 +465,21 @@ def test_verify_notices_a_shorter_list():
         written = si.add_shortcut(uid, si.build_entry(appid, 'NFS', exe), log=quiet)
         eq(written, 3, 'three entries written')
 
-        ok(si.verify(uid, appid, 'proton_9', expect_count=3, log=quiet),
-           'passes when the file is as we left it')
+        ok(
+            si.verify(uid, appid, 'proton_9', expect_count=3, log=quiet),
+            'passes when the file is as we left it')
 
         # Steam rolls back, dropping chiaki4deck; a retry appends us to that.
         vdf.write_shortcuts(path, {
             '0': shortcut(0x81111111, 'Chrome', '/usr/bin/chrome'),
             '1': si.build_entry(appid, 'NFS', exe)
         })
-        ok(si.verify(uid, appid, 'proton_9', log=quiet),
-           'the old check, appid only, still says yes')
-        ok(not si.verify(uid, appid, 'proton_9', expect_count=3, log=quiet),
-           'counting the entries catches it')
+        ok(
+            si.verify(uid, appid, 'proton_9', log=quiet),
+            'the old check, appid only, still says yes')
+        ok(
+            not si.verify(uid, appid, 'proton_9', expect_count=3, log=quiet),
+            'counting the entries catches it')
 
 
 @case
@@ -473,8 +489,9 @@ def test_restore_puts_the_backup_back():
         fake_steam(tmp)
         uid = '12345678'
         path = os.path.join(si.user_config(uid), 'shortcuts.vdf')
-        before = {'0': shortcut(0x81111111, 'Chrome', '/usr/bin/chrome'),
-                  '1': shortcut(0x82222222, 'chiaki4deck', '/usr/bin/chiaki')}
+        before = {
+            '0': shortcut(0x81111111, 'Chrome', '/usr/bin/chrome'),
+            '1': shortcut(0x82222222, 'chiaki4deck', '/usr/bin/chiaki')}
         vdf.write_shortcuts(path, before)
 
         backup = si.backup(path, log=quiet)
@@ -485,8 +502,9 @@ def test_restore_puts_the_backup_back():
 
         ok(si.restore(backup, path, log=quiet), 'restored')
         eq(vdf.read_shortcuts(path)[1], before, 'both shortcuts are back')
-        ok(not si.restore(os.path.join(tmp, 'nope'), path, log=quiet),
-           'a missing backup is reported, not raised')
+        ok(
+            not si.restore(os.path.join(tmp, 'nope'), path, log=quiet),
+            'a missing backup is reported, not raised')
 
 
 # ---------------------------------------------------------------------- user
@@ -527,8 +545,9 @@ def test_ambiguous_user_is_asked_about():
         try:
             si.find_user(log=quiet)
         except si.AmbiguousUser as exc:
-            eq(sorted(uid for uid, _ in exc.candidates),
-               ['11112222', '12345678'], 'both offered')
+            eq(
+                sorted(uid for uid, _ in exc.candidates),
+                ['11112222', '12345678'], 'both offered')
         else:
             raise AssertionError('an account was guessed')
 
@@ -572,8 +591,9 @@ def test_official_tool_name():
         eq(tool('proton-9.0-4f'), 'proton_9', 'stable')
         eq(tool('proton-10.0-4b'), 'proton_10', 'two digits')
         eq(tool('experimental-11.0-20250101'), 'proton_experimental', 'experimental')
-        eq(si.official_tool_name(os.path.join(tmp, 'nothing-here')), None,
-           'a folder without a version file')
+        eq(
+            si.official_tool_name(os.path.join(tmp, 'nothing-here')), None,
+            'a folder without a version file')
 
 
 @case
@@ -645,8 +665,9 @@ def test_artwork_is_dated_now():
 
         placed = si.install_art('12345678', 0x8fabcdef, art, log=quiet)
 
-        ok(os.stat(placed['hero']).st_mtime > time.time() - 60,
-           'dated %s' % time.ctime(os.stat(placed['hero']).st_mtime))
+        ok(
+            os.stat(placed['hero']).st_mtime > time.time() - 60,
+            'dated %s' % time.ctime(os.stat(placed['hero']).st_mtime))
 
 
 # -------------------------------------------------------------------- unpack
@@ -943,12 +964,14 @@ def raw_zip(path, entries):
         offset = len(body) - len(PREFIX)
         body += struct.pack('<IHHHHHIIIHH', 0x04034b50, 21, flags, method, 0, 0x21,
                             crc, len(packed), size, len(n), 0) + n + packed
-        cd += struct.pack('<IHHHHHHIIIHHHHHII', 0x02014b50, 0x0315, 21, flags, method,
-                          0, 0x21, crc, len(packed), size, len(n), 0, 0, 0, 0,
-                          0o100644 << 16, offset) + n
+        cd += struct.pack(
+            '<IHHHHHHIIIHHHHHII', 0x02014b50, 0x0315, 21, flags, method,
+            0, 0x21, crc, len(packed), size, len(n), 0, 0, 0, 0,
+            0o100644 << 16, offset) + n
     offset = len(body) - len(PREFIX)
-    body += cd + struct.pack('<IHHHHIIH', 0x06054b50, 0, 0, len(entries), len(entries),
-                             len(cd), offset, 0)
+    body += cd + struct.pack(
+        '<IHHHHIIH', 0x06054b50, 0, 0, len(entries), len(entries),
+        len(cd), offset, 0)
     with open(path, 'wb') as f:
         f.write(body)
     return path
@@ -982,8 +1005,9 @@ def test_unpack_deflate64_damage():
     """unpack: a Deflate64 entry that does not check out is called damaged"""
     stream, data = deflate64_sample()
     with tempfile.TemporaryDirectory() as tmp:
-        for what, packed, crc in (('a wrong CRC', stream, zlib.crc32(data) ^ 1),
-                                  ('a cut stream', stream[:-40], zlib.crc32(data))):
+        for what, packed, crc in (
+                ('a wrong CRC', stream, zlib.crc32(data) ^ 1),
+                ('a cut stream', stream[:-40], zlib.crc32(data))):
             run = raw_zip(os.path.join(tmp, 'game.run'), [
                 ('Game/data.big', 9, packed, crc, len(data), 0)
             ])
@@ -1099,8 +1123,9 @@ def test_unpack_refuses_what_it_cannot_unpack():
             eq(rc, 1, 'exit code')
             ok('ERROR: %s' % said in out, 'the reason, for the dialog:\n%s' % out)
             eq(fake.calls, [], 'Steam never touched')
-            ok(not os.path.exists(os.path.join(tmp, 'game', 'Game', 'speed.exe')),
-               'nothing unpacked, not even what could be')
+            ok(
+                not os.path.exists(os.path.join(tmp, 'game', 'Game', 'speed.exe')),
+                'nothing unpacked, not even what could be')
 
 
 # ------------------------------------------------------------------- install
@@ -1150,8 +1175,9 @@ def run_install(tmp, proton='proton_9', config=CONFIG_WITH_CTM, broken=None,
         raise RuntimeError('%s blew up' % broken)
 
     fake = FakeSteam()
-    patches = [(steamctl, 'shutdown', fake.shutdown), (steamctl, 'start', fake.start),
-               (steamctl, 'wait_rewrite', fake.wait_rewrite), (time, 'sleep', quiet)]
+    patches = [
+        (steamctl, 'shutdown', fake.shutdown), (steamctl, 'start', fake.start),
+        (steamctl, 'wait_rewrite', fake.wait_rewrite), (time, 'sleep', quiet)]
     if broken:
         patches.append((si, broken, explode))
     saved = [(mod, name, getattr(mod, name)) for mod, name, _ in patches]
@@ -1160,8 +1186,9 @@ def run_install(tmp, proton='proton_9', config=CONFIG_WITH_CTM, broken=None,
         for mod, name, value in patches:
             setattr(mod, name, value)
         with contextlib.redirect_stdout(out):
-            rc = install.main(['--recipe', recipe, '--game-dir', game, '--archive', archive,
-                               '--proton', proton, '--art', art])
+            rc = install.main([
+                '--recipe', recipe, '--game-dir', game, '--archive', archive,
+                '--proton', proton, '--art', art])
     finally:
         for mod, name, value in saved:
             setattr(mod, name, value)
@@ -1182,16 +1209,18 @@ def run_uninstall(tmp, game, purge=False, entries=None, config=CONFIG_WITH_CTM):
         json.dump({'name': 'NFS', 'slug': 'nfs', 'exe': 'speed.exe'}, f)
 
     fake = FakeSteam()
-    patches = [(steamctl, 'shutdown', fake.shutdown), (steamctl, 'start', fake.start),
-               (time, 'sleep', quiet)]
+    patches = [
+        (steamctl, 'shutdown', fake.shutdown), (steamctl, 'start', fake.start),
+        (time, 'sleep', quiet)]
     saved = [(mod, name, getattr(mod, name)) for mod, name, _ in patches]
     out = io.StringIO()
     try:
         for mod, name, value in patches:
             setattr(mod, name, value)
         with contextlib.redirect_stdout(out):
-            rc = install.main(['--recipe', recipe, '--game-dir', game, '--uninstall']
-                              + (['--purge'] if purge else []))
+            rc = install.main(
+                ['--recipe', recipe, '--game-dir', game, '--uninstall']
+                + (['--purge'] if purge else []))
     finally:
         for mod, name, value in saved:
             setattr(mod, name, value)
@@ -1269,8 +1298,9 @@ def test_crash_brings_steam_back():
         rc, out, fake = run_install(tmp, broken='add_shortcut')
 
         eq(rc, 1, 'exit code')
-        ok('UNEXPECTED ERROR' in out and 'RuntimeError: add_shortcut blew up' in out,
-           'the traceback is in the log:\n%s' % out)
+        ok(
+            'UNEXPECTED ERROR' in out and 'RuntimeError: add_shortcut blew up' in out,
+            'the traceback is in the log:\n%s' % out)
         eq(fake.calls, ['shutdown', 'start'], 'the client brought back up')
 
 
@@ -1310,8 +1340,9 @@ def test_folder_occupant():
         eq(install.folder_occupant(game, recipe), 'NFS 2012', 'another game')
 
         shutil.rmtree(os.path.join(game, '.plumber'))
-        eq(install.folder_occupant(game, recipe), 'files the installer did not put there',
-           'files from somewhere else')
+        eq(
+            install.folder_occupant(game, recipe), 'files the installer did not put there',
+            'files from somewhere else')
 
 
 @case
@@ -1326,15 +1357,17 @@ def test_uninstall_without_an_appid_takes_nothing_else():
         del ours['appid'], theirs['appid']
         other = shortcut(0x82222222, 'chiaki4deck', '/usr/bin/chiaki')
 
-        rc, out, _ = run_uninstall(tmp, game, entries={'0': ours, '1': theirs, '2': other},
-                                   config=CONFIG_WITH_DEFAULT)
+        rc, out, _ = run_uninstall(
+            tmp, game, entries={'0': ours, '1': theirs, '2': other},
+            config=CONFIG_WITH_DEFAULT)
 
         eq(rc, 0, 'exit code\n%s' % out)
         _, data, _, _ = vdf.read_shortcuts(os.path.join(si.user_config('12345678'), 'shortcuts.vdf'))
         eq([e['AppName'] for e in data.values()], ['Tool', 'chiaki4deck'], 'the shortcuts left')
         cfg = read(si.STEAM_ROOT, 'config', 'config.vdf').decode()
-        eq(config_surgery.get_mapping(cfg, 0), {'name': 'proton_9', 'config': '', 'priority': '75'},
-           'the Steam Play default')
+        eq(
+            config_surgery.get_mapping(cfg, 0), {'name': 'proton_9', 'config': '', 'priority': '75'},
+            'the Steam Play default')
 
 
 @case
@@ -1376,15 +1409,17 @@ def test_purge_deletes_only_the_game_folder():
 
 
 def sh(script, *args):
-    return subprocess.run(['sh', '-c', script, 'sh'] + list(args),
-                          capture_output=True, text=True)
+    return subprocess.run(
+        ['sh', '-c', script, 'sh'] + list(args),
+        capture_output=True, text=True)
 
 
 @case
 def test_shell_syntax():
     """shell: every script parses"""
-    for path in (os.path.join(HERE, 'setup.sh'), os.path.join(HERE, 'uninstall-template.sh'),
-                 os.path.join(ROOT, 'make-run.sh')):
+    for path in (
+            os.path.join(HERE, 'setup.sh'), os.path.join(HERE, 'uninstall-template.sh'),
+            os.path.join(ROOT, 'make-run.sh')):
         result = subprocess.run(['sh', '-n', path],
                                 capture_output=True, text=True)
         eq(result.returncode, 0, '%s: %s' % (os.path.basename(path), result.stderr.strip()))

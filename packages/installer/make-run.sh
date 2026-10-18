@@ -44,9 +44,10 @@ exit 0
 HEOF
 HS=$(stat -c%s "$TMP/header")
 [ "$HS" -lt "$BS" ] || { echo "The header does not fit in $BS bytes: $HS" >&2; exit 1; }
-{ cat "$TMP/header"
-  i=$HS; while [ $i -lt $((BS - 1)) ]; do printf '#'; i=$((i+1)); done
-  printf '\n'
+{
+    cat "$TMP/header"
+    i=$HS; while [ $i -lt $((BS - 1)) ]; do printf '#'; i=$((i+1)); done
+    printf '\n'
 } > "$TMP/header.padded"
 
 # meta is padded with zeros to a whole block: gzip ignores trailing zeros

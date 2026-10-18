@@ -40,24 +40,29 @@ def main(recipe_path, game_dir, expect_tool, art_dir='', steam_user=''):
     _, entry = si.find_shortcut(uid, appid=appid)
     check('shortcut present', bool(entry))
     if entry:
-        check('  AppName', entry.get('AppName') == recipe['name'],
-              repr(entry.get('AppName')))
+        check(
+            '  AppName', entry.get('AppName') == recipe['name'],
+            repr(entry.get('AppName')))
         check('  Exe is quoted', entry.get('Exe') == '"%s"' % exe)
         check('  StartDir', entry.get('StartDir') == os.path.dirname(exe) + '/')
         wrappers = si.wrappers_from(recipe, exe, log=lambda m: None)
-        check('  LaunchOptions for wrappers %s' % (wrappers or 'none'),
-              entry.get('LaunchOptions') == si.launch_options_for(wrappers),
-              repr(entry.get('LaunchOptions')))
+        check(
+            '  LaunchOptions for wrappers %s' % (wrappers or 'none'),
+            entry.get('LaunchOptions') == si.launch_options_for(wrappers),
+            repr(entry.get('LaunchOptions')))
         if art_dir and os.path.isfile(os.path.join(art_dir, 'icon.png')):
-            check('  icon points into grid',
-                  entry.get('icon', '').endswith('%d_icon.png' % appid),
-                  repr(entry.get('icon')))
+            check(
+                '  icon points into grid',
+                entry.get('icon', '').endswith('%d_icon.png' % appid),
+                repr(entry.get('icon')))
 
-    cfg = open(os.path.join(si.STEAM_ROOT, 'config', 'config.vdf'),
-               encoding='utf-8', errors='surrogateescape').read()
+    cfg = open(
+        os.path.join(si.STEAM_ROOT, 'config', 'config.vdf'),
+        encoding='utf-8', errors='surrogateescape').read()
     got = config_surgery.get_mapping(cfg, appid)
-    check('CompatToolMapping = %s' % expect_tool,
-          bool(got) and got.get('name') == expect_tool, repr(got))
+    check(
+        'CompatToolMapping = %s' % expect_tool,
+        bool(got) and got.get('name') == expect_tool, repr(got))
     if got:
         check('  priority = 250', got.get('priority') == '250')
 
@@ -65,13 +70,15 @@ def main(recipe_path, game_dir, expect_tool, art_dir='', steam_user=''):
     for kind, suffix in si.ART_SUFFIX.items():
         if not art_dir:
             break
-        has_src = any(os.path.isfile(os.path.join(art_dir, kind + e))
-                      for e in ('.png', '.jpg', '.jpeg'))
+        has_src = any(
+            os.path.isfile(os.path.join(art_dir, kind + e))
+            for e in ('.png', '.jpg', '.jpeg'))
         if not has_src:
             continue
-        found = [f for f in os.listdir(grid)
-                 if f.startswith(str(appid))
-                 and os.path.splitext(f)[0] == '%d%s' % (appid, suffix)]
+        found = [
+            f for f in os.listdir(grid)
+            if f.startswith(str(appid))
+            and os.path.splitext(f)[0] == '%d%s' % (appid, suffix)]
         check('artwork %s' % kind, bool(found), 'no %d%s.*' % (appid, suffix))
 
     print()
@@ -84,6 +91,7 @@ def main(recipe_path, game_dir, expect_tool, art_dir='', steam_user=''):
 
 if __name__ == '__main__':
     if len(sys.argv) < 4:
-        sys.exit('usage: check-install.py <recipe> <game-dir> <proton-tool> '
-                 '[art-dir] [steam-user]')
+        sys.exit(
+            'usage: check-install.py <recipe> <game-dir> <proton-tool> '
+            '[art-dir] [steam-user]')
     sys.exit(main(*sys.argv[1:6]))

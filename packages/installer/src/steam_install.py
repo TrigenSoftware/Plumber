@@ -61,9 +61,10 @@ def list_users():
                 uid = str(int(key) - STEAMID64_BASE)
             except ValueError:
                 continue
-            named[uid] = (body.get('PersonaName') or body.get('AccountName') or uid,
-                          int(body.get('Timestamp', 0) or 0),
-                          body.get('AutoLogin') == '1')
+            named[uid] = (
+                body.get('PersonaName') or body.get('AccountName') or uid,
+                int(body.get('Timestamp', 0) or 0),
+                body.get('AutoLogin') == '1')
 
     def rank(uid):
         name, stamp, auto = named.get(uid, (uid, 0, False))
@@ -101,8 +102,9 @@ def find_user(log=print, chosen=None):
             if uid in dirs:
                 log('  user: %s (AutoLogin)' % uid)
                 return uid
-        stamped = [(int(v.get('Timestamp', 0)), k) for k, v in users.items()
-                   if isinstance(v, dict)]
+        stamped = [
+            (int(v.get('Timestamp', 0)), k) for k, v in users.items()
+            if isinstance(v, dict)]
         if stamped:
             uid = str(int(max(stamped)[1]) - STEAMID64_BASE)
             if uid in dirs:
@@ -185,8 +187,9 @@ def library_dirs():
     offers no Proton then, and the game goes in without one.
     """
     roots = [STEAM_ROOT]
-    for path in (os.path.join(STEAM_ROOT, 'steamapps', 'libraryfolders.vdf'),
-                 os.path.join(STEAM_ROOT, 'config', 'libraryfolders.vdf')):
+    for path in (
+            os.path.join(STEAM_ROOT, 'steamapps', 'libraryfolders.vdf'),
+            os.path.join(STEAM_ROOT, 'config', 'libraryfolders.vdf')):
         if not os.path.isfile(path):
             continue
         try:
@@ -217,8 +220,9 @@ def proton_names(steamapps):
         if not (f.startswith('appmanifest_') and f.endswith('.acf')):
             continue
         try:
-            txt = open(os.path.join(steamapps, f), encoding='utf-8',
-                       errors='replace').read()
+            txt = open(
+                os.path.join(steamapps, f), encoding='utf-8',
+                errors='replace').read()
         except OSError:
             continue
         nm = re.search(r'"name"\s+"([^"]*)"', txt)
@@ -383,9 +387,10 @@ def remove_shortcut(uid, appid=None, exe_quoted=None, log=print):
         return False
     root, data, raw, endpos = vdf.read_shortcuts(path)
     # An appid of 0 is no appid: it would match every entry without one
-    hit = [i for i, e in data.items()
-           if (appid and vdf.as_unsigned32(e.get('appid', 0)) == appid)
-           or (exe_quoted is not None and e.get('Exe') == exe_quoted)]
+    hit = [
+        i for i, e in data.items()
+        if (appid and vdf.as_unsigned32(e.get('appid', 0)) == appid)
+        or (exe_quoted is not None and e.get('Exe') == exe_quoted)]
     if not hit:
         return False
     for i in hit:
@@ -411,8 +416,9 @@ def set_proton(appid, tool_name, log=print):
 
 def unset_proton(appid, log=print):
     if not appid:
-        raise ValueError('CompatToolMapping "0" is the Steam Play default for '
-                         'every other game, never an entry of ours')
+        raise ValueError(
+            'CompatToolMapping "0" is the Steam Play default for '
+            'every other game, never an entry of ours')
     path = os.path.join(STEAM_ROOT, 'config', 'config.vdf')
     txt = open(path, encoding='utf-8', errors='surrogateescape').read()
     new = config_surgery.remove_mapping(txt, appid)
@@ -423,8 +429,9 @@ def unset_proton(appid, log=print):
 
 # ------------------------------------------------------------------ artwork
 
-ART_SUFFIX = {'portrait': 'p', 'wide': '', 'hero': '_hero',
-              'logo': '_logo', 'icon': '_icon'}
+ART_SUFFIX = {
+    'portrait': 'p', 'wide': '', 'hero': '_hero',
+    'logo': '_logo', 'icon': '_icon'}
 
 
 def install_art(uid, appid, art_dir, log=print):
@@ -484,8 +491,9 @@ def verify(uid, appid, expect_tool, expect_count=None, log=print):
     except Exception as exc:
         log('  shortcut: file unreadable - %s' % exc)
         return False
-    hit = [e for e in data.values()
-           if vdf.as_unsigned32(e.get('appid', 0)) == appid]
+    hit = [
+        e for e in data.values()
+        if vdf.as_unsigned32(e.get('appid', 0)) == appid]
     if hit:
         log('  shortcut present: %s' % hit[0]['AppName'])
     else:
@@ -504,8 +512,9 @@ def verify(uid, appid, expect_tool, expect_count=None, log=print):
         return okay
 
     try:
-        cfg = open(os.path.join(STEAM_ROOT, 'config', 'config.vdf'),
-                   encoding='utf-8', errors='surrogateescape').read()
+        cfg = open(
+            os.path.join(STEAM_ROOT, 'config', 'config.vdf'),
+            encoding='utf-8', errors='surrogateescape').read()
         got = config_surgery.get_mapping(cfg, appid)
     except Exception as exc:
         log('  config.vdf: unreadable - %s' % exc)
