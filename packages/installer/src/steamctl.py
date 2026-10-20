@@ -3,7 +3,8 @@
 The main lesson this module exists for: writing a file while the client is
 down does not mean the write stuck. Steam rewrites `shortcuts.vdf` roughly a
 minute and a half after it starts, and it may put its own state there instead
-of ours. So every edit has to be verified AFTER the client has done that.
+of ours. So every edit has to be verified AFTER the client has done that, or
+after it has had every chance to.
 """
 
 import os
@@ -15,6 +16,8 @@ REGISTRY = os.path.expanduser('~/.steam/registry.vdf')
 # Processes worth waiting for: the client itself and its web helpers. SteamOS
 # service daemons (steamos-manager and friends) have nothing to do with it.
 PROC_RE = re.compile(r'^(steam|steamwebhelper|steamerrorreporter|steam-runtime-.*)$')
+# How long the client gets for its rewrite of shortcuts.vdf, in seconds
+REWRITE_TIMEOUT = 210
 
 
 def steam_procs():
@@ -70,11 +73,11 @@ def start(log=print):
     return False
 
 
-def wait_rewrite(path, mtime_before, timeout=210, log=print):
+def wait_rewrite(path, mtime_before, timeout=REWRITE_TIMEOUT, log=print, tick=None):
     """Waits until Steam rewrites the file itself. True if it did.
 
-    This is the moment of truth: until it happens, what is on disk means
-    nothing.
+    This is the moment of truth: until it happens, what is on disk proves
+    little. `tick(seconds)` hears how long it has been, about once a second.
     """
     t0 = time.time()
     while time.time() - t0 < timeout:
@@ -84,6 +87,8 @@ def wait_rewrite(path, mtime_before, timeout=210, log=print):
                 return True
         except OSError:
             pass
+        if tick:
+            tick(time.time() - t0)
         time.sleep(1.0)
     log('  Steam did not touch the file in %ds' % timeout)
     return False

@@ -195,6 +195,10 @@ The rule: **a GUI is shown only when the questions were asked through a GUI.** I
 
 Done: `kdialog --progressbar` returns a DBus reference, and `qdbus6` moves the bar through it. Python counts the unpacking percentage by bytes rather than by files: otherwise a 4 GB file would hold the bar still for a minute. The percentage then goes to the Python side through `--progress-ref`, and it labels its own stages: closing Steam, saving the backups, adding to the library, the artwork, starting it again, verifying. Without a GUI all of this is silently skipped: the install does not depend on the progress bar.
 
+**The wait for the rewrite counts on the bar.** At 96% Steam can take minutes over the rewrite (5.1.0), and a bar that stands still that long reads as a hang. The label says how long it has been and how long it can be: "0:42 so far, it can take up to 3:30".
+
+**The Cancel button answers.** `kdialog --progressbar` shows one by default, from `QProgressDialog`, and pressing it only hides the window and sets `wasCancelled`: the install went on unseen, restarts of Steam included. Now `install.py` asks `wasCancelled`, and a reference that stops answering counts as closed too, since a window closed any other way may take `kdialog` down with it. While Steam is untouched, a closed window stops the install where it is: the unpacking stops, nothing is added, and exit code 6 makes the last window say so and name the folder with what was unpacked. Once Steam is down, the attempt in progress runs to its end, because Steam has to come back up anyway, but no other one starts. If that attempt failed, the list of shortcuts goes back as it was, and a notification says why Steam goes down once more.
+
 **What asks the questions: `kdialog`.** Desktop Mode on SteamOS is KDE Plasma, and kdialog comes from KDE and draws native Qt windows. `--getexistingdirectory` settles the SD card question neatly: there is no need to detect `/run/media/deck/<label>` and know the partition label, the person just picks it in the file dialog. The same tool gives `--progressbar` through DBus: unpacking 8 GB takes minutes, and a silent script looks hung.
 
 The fallback chain: `kdialog` → `zenity` (unlikely to be there, the system is KDE) → an interactive `read` in a terminal → defaults with no questions, everything into the log.
@@ -345,7 +349,7 @@ The order:
 8.  Write the `CompatToolMapping` for this appid into `config.vdf`, surgically, see 5.2
 9.  Lay out the artwork in `userdata/<id>/config/grid/` under names derived from the appid
 10. Start Steam again
-11. **Wait until Steam rewrites `shortcuts.vdf`, and check that the entry is in place** (5.1.0). Until that moment the contents of the file mean nothing
+11. **Wait until Steam rewrites `shortcuts.vdf`, and check that the entry is in place** (5.1.0). Until that moment the contents of the file prove little. The wait lasts up to 210 s, and the bar counts it: Steam can take minutes. If the rewrite does not come, the check runs on the file as it stands; another attempt is only for an edit the check finds undone
 12. `install.log` is not a step at the end: `setup.sh` writes it as the install goes (see "An install that fails halfway" below)
 
 Step 5 comes before any write, no exceptions. The old reasoning "step 1 before step 4, because it needs a running client" went away together with `ActiveUser` (5.1.1), so the order of those two steps is now free.
@@ -391,6 +395,8 @@ About 90 seconds after the client started, the file held a state from two years 
 3. **`SteamPID` in `registry.vdf` is reset to zero on exit**: a reliable sign that does not race with `pgrep`
 4. **The backup is mandatory before the first write**, and it is also what everything rolls back to. A backup taken after a failed attempt is useless
 5. **A retry has to be planned for**: if the edit did not survive the restart, it makes sense to try again, but with a limited number of attempts and a guarantee that the list of shortcuts stays whole in the end
+
+**A retry is for an edit Steam undid, not for a rewrite that never came.** From a player's feedback: Steam restarted five or six times in a row, the bar stood at 96% for minutes until they pressed Cancel, and the game was in the library anyway. A rewrite that does not come explains all of it: every attempt waited the full 210 s, had nothing proven, and restarted Steam for the next one, three attempts and a fourth restart to put the list back, while Cancel only hid the window. `[?]` Their `install.log` would confirm it. Now a rewrite that does not come leads to the check on the file as it stands, and only a failed check leads to another attempt.
 
 `[?]` **The cause of the rollback is not established.** The best candidate is Steam Cloud: the client syncs shortcuts between devices and may have decided the cloud copy wins. But that does not explain why the rollback went two years back, or why the same procedure a minute later went through without trouble. For now we treat it as nondeterministic behavior that verification and retries protect against, not as a condition that can be predicted.
 

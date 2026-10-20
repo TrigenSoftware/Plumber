@@ -52,7 +52,7 @@ DEST=~/Games PROTON=proton_10 ./nfsmw.run    # without dialogs
 ./nfsmw.run --dry-run                        # show what would happen, change nothing
 ```
 
-The log is `<game-dir>/install.log`, or `/tmp/<slug>-install.log` when the game folder cannot be written to. `setup.sh` writes it as the install goes, with the tracebacks, so it is there after a crash as well. The exit codes are described at the top of `install.py`; 4 means "the game is in the library, but not all of its setup went through".
+The log is `<game-dir>/install.log`, or `/tmp/<slug>-install.log` when the game folder cannot be written to. `setup.sh` writes it as the install goes, with the tracebacks, so it is there after a crash as well. The exit codes are described at the top of `install.py`; 4 means "the game is in the library, but not all of its setup went through", and 6 that the progress window was closed before Steam was touched.
 
 Uninstall with what the installer put next to the game:
 
