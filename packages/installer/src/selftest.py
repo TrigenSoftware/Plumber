@@ -1132,10 +1132,17 @@ def test_unpack_refuses_what_it_cannot_unpack():
 
 class FakeSteam:
     """steamctl without a client: shutting down and starting always work, and
-    the rewrite that the real one does a minute after start counts as done."""
+    the rewrite that the real one does a minute after start counts as done.
 
-    def __init__(self):
+    `rewrites=False` is a client that never gets round to the rewrite, and
+    `undoes` is how many rewrites put back a list without the game, the way
+    5.1.0 saw it happen. The wait tells `tick` about two moments of itself.
+    """
+
+    def __init__(self, rewrites=True, undoes=0):
         self.calls = []
+        self.rewrites = rewrites
+        self.undoes = undoes
 
     def shutdown(self, timeout=90, log=print):
         self.calls.append('shutdown')
@@ -1145,20 +1152,30 @@ class FakeSteam:
         self.calls.append('start')
         return True
 
-    def wait_rewrite(self, path, mtime_before, timeout=210, log=print):
-        return True
+    def wait_rewrite(self, path, mtime_before, timeout=210, log=print, tick=None):
+        if tick:
+            tick(0)
+            tick(42)
+        if self.undoes:
+            self.undoes -= 1
+            vdf.write_shortcuts(path, {})
+        return self.rewrites
 
 
 def run_install(tmp, proton='proton_9', config=CONFIG_WITH_CTM, broken=None,
-                archive=None):
+                archive=None, steam=None, entries=None, extra=()):
     """install.main() on a fake Steam in `tmp`. -> (exit code, log, FakeSteam).
 
     The game comes out of `archive`, by default a Zip64 .run holding speed.exe.
     `broken` names a function of steam_install to replace with one that raises.
+    `steam` is the FakeSteam to run against, `entries` the shortcuts there
+    before the install, and `extra` more (module, name, value) to patch in.
     """
     root = fake_steam(tmp)
     with open(os.path.join(root, 'config', 'config.vdf'), 'w') as f:
         f.write(config)
+    if entries is not None:
+        vdf.write_shortcuts(os.path.join(si.user_config('12345678'), 'shortcuts.vdf'), entries)
     game = os.path.join(tmp, 'game')
     art = os.path.join(tmp, 'art')
     os.makedirs(art)
@@ -1174,12 +1191,13 @@ def run_install(tmp, proton='proton_9', config=CONFIG_WITH_CTM, broken=None,
     def explode(*_args, **_kwargs):
         raise RuntimeError('%s blew up' % broken)
 
-    fake = FakeSteam()
+    fake = steam or FakeSteam()
     patches = [
         (steamctl, 'shutdown', fake.shutdown), (steamctl, 'start', fake.start),
         (steamctl, 'wait_rewrite', fake.wait_rewrite), (time, 'sleep', quiet)]
     if broken:
         patches.append((si, broken, explode))
+    patches += extra
     saved = [(mod, name, getattr(mod, name)) for mod, name, _ in patches]
     out = io.StringIO()
     try:
@@ -1289,6 +1307,113 @@ def test_no_proton_to_pick_is_partial():
 
         eq(rc, install.PARTIAL, 'exit code\n%s' % out)
         eq(fake.calls, ['shutdown', 'start'], 'one attempt, no retries')
+
+
+@case
+def test_no_rewrite_is_no_reason_to_restart():
+    """install: Steam not rewriting the file is no reason to restart it"""
+    # Each of three attempts waited the full 210 s for the rewrite and then
+    # restarted Steam: minutes at 96% and Steam going round, as a player saw it
+    with tempfile.TemporaryDirectory() as tmp:
+        rc, out, fake = run_install(tmp, steam=FakeSteam(rewrites=False))
+
+        eq(rc, 0, 'exit code\n%s' % out)
+        ok('checking it as it stands' in out, 'the log says what was checked:\n%s' % out)
+        eq(fake.calls, ['shutdown', 'start'], 'one attempt, no retries')
+
+
+@case
+def test_undone_edit_is_made_again():
+    """install: an edit Steam undid is made again"""
+    with tempfile.TemporaryDirectory() as tmp:
+        rc, out, fake = run_install(tmp, steam=FakeSteam(undoes=1))
+
+        eq(rc, 0, 'exit code\n%s' % out)
+        ok('INSTALLED on attempt 2' in out, out)
+        eq(fake.calls, ['shutdown', 'start'] * 2, 'Steam restarted for the second attempt')
+
+
+@case
+def test_wait_says_how_long():
+    """install: the wait for Steam says how long it has been and can be"""
+    with tempfile.TemporaryDirectory() as tmp:
+        said = []
+        rc, out, _ = run_install(tmp, extra=[
+            (install, 'progress', lambda pct=None, text=None: said.append(text))])
+
+        eq(rc, 0, 'exit code\n%s' % out)
+        ok(
+            'Waiting for Steam to save the library...\n0:42 so far, it can take up to 3:30'
+            in said, 'what the bar said: %r' % said)
+
+
+@case
+def test_closed_window_is_noticed():
+    """install: a window cancelled or gone counts as closed, and none as open"""
+    with tempfile.TemporaryDirectory() as tmp:
+        asked = os.path.join(tmp, 'asked')
+        saved = install.QDBUS, install.PROGRESS_REF
+        try:
+            install.PROGRESS_REF = 'org.kde.kdialog-1 /ProgressDialog'
+            for answer, closed in (('echo true', True), ('echo false', False), ('exit 1', True)):
+                install.QDBUS = fake_tool(tmp, 'qdbus', 'echo "$@" > "%s"\n%s' % (asked, answer))
+                eq(install.cancelled(), closed, 'qdbus doing: %s' % answer)
+                eq(
+                    open(asked).read().strip(),
+                    'org.kde.kdialog-1 /ProgressDialog wasCancelled',
+                    'what was asked')
+            install.PROGRESS_REF = None
+            eq(install.cancelled(), False, 'no window')
+        finally:
+            install.QDBUS, install.PROGRESS_REF = saved
+
+
+@case
+def test_closed_window_stops_the_unpacking():
+    """install: a window closed while unpacking stops it where it is"""
+    with tempfile.TemporaryDirectory() as tmp:
+        archive = game_zip(os.path.join(tmp, 'game.run'), {
+            'data.bin': b'D' * 1000,
+            'speed.exe': b'MZ'})
+        rc, out, fake = run_install(tmp, archive=archive, extra=[
+            (install, 'cancelled', lambda: True)])
+
+        eq(rc, install.CANCELLED, 'exit code\n%s' % out)
+        eq(fake.calls, [], 'Steam never touched')
+        ok(not os.path.exists(os.path.join(tmp, 'game', 'speed.exe')), 'the next file not unpacked')
+
+
+@case
+def test_closed_window_leaves_steam_alone():
+    """install: a window closed before Steam is touched stops the install there"""
+    with tempfile.TemporaryDirectory() as tmp:
+        # Still open while the one file is unpacked, closed right after it
+        answers = iter([False])
+        rc, out, fake = run_install(tmp, extra=[
+            (install, 'cancelled', lambda: next(answers, True))])
+
+        eq(rc, install.CANCELLED, 'exit code\n%s' % out)
+        ok('CANCELLED' in out, 'the log says so:\n%s' % out)
+        eq(fake.calls, [], 'Steam never touched')
+
+
+@case
+def test_closed_window_gets_no_other_attempt():
+    """install: with the window closed, an undone edit is put back, not retried"""
+    with tempfile.TemporaryDirectory() as tmp:
+        theirs = shortcut(0x80000001, 'Hot Pursuit 2', '"/games/nfshp2.exe"')
+        fake = FakeSteam(undoes=1)
+        said = []
+        rc, out, _ = run_install(tmp, steam=fake, entries={'0': theirs}, extra=[
+            # Closed once Steam is up and the wait has begun
+            (install, 'cancelled', lambda: 'start' in fake.calls),
+            (install, 'notify', lambda title, text: said.append(text))])
+
+        eq(rc, 2, 'exit code\n%s' % out)
+        eq(fake.calls, ['shutdown', 'start'] * 2, 'one attempt, then one restart to put the list back')
+        eq(len(said), 1, 'that restart announced: %r' % said)
+        _, data, _, _ = vdf.read_shortcuts(os.path.join(si.user_config('12345678'), 'shortcuts.vdf'))
+        eq([e['AppName'] for e in data.values()], ['Hot Pursuit 2'], 'the list as it was')
 
 
 @case

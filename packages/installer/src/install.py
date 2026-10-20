@@ -11,10 +11,12 @@ copies that into install.log, tracebacks included. The log is there for the
 install that went wrong, so it cannot wait for the install to get far enough
 to write it.
 
-Exit codes: 0 installed; 1 failed; 2 Steam kept undoing the edit; 3 the Steam
-account has to be chosen; 4 (PARTIAL) the game is in the library, but a step
-after the shortcut did not go through; 5 (NOT_ITS_FOLDER) nothing removed: the
-folder to delete whole does not look like the game's own.
+Exit codes: 0 installed; 1 failed; 2 Steam did not keep the edit, and the
+shortcut list is back as it was; 3 the Steam account has to be chosen; 4
+(PARTIAL) the game is in the library, but a step after the shortcut did not go
+through; 5 (NOT_ITS_FOLDER) nothing removed: the folder to delete whole does
+not look like the game's own; 6 (CANCELLED) the progress window was closed
+before Steam was touched.
 """
 
 import argparse
@@ -36,6 +38,7 @@ import vdf
 
 PARTIAL = 4
 NOT_ITS_FOLDER = 5
+CANCELLED = 6
 PROGRESS_REF = None
 QDBUS = shutil.which('qdbus6') or shutil.which('qdbus')
 # True while the client is down because of us. Every way out of main(), an
@@ -64,6 +67,53 @@ def progress(pct=None, text=None):
                 capture_output=True, timeout=5)
     except Exception:
         pass
+
+
+class Cancelled(Exception):
+    """The progress window was closed while Steam was still untouched."""
+
+
+def cancelled():
+    """Whether the person closed the progress window. Its Cancel button hides
+    it and sets wasCancelled, and the install used to go on unseen, Steam
+    restarts and all. A window closed any other way may take kdialog down with
+    it, so a reference that stops answering counts as closed too. Without a
+    window there is nothing to close."""
+    if not PROGRESS_REF or not QDBUS:
+        return False
+    try:
+        result = subprocess.run(
+            [QDBUS] + PROGRESS_REF.split() + ['wasCancelled'],
+            capture_output=True, text=True, timeout=5)
+    except Exception:
+        # A qdbus that hangs says nothing either way
+        return False
+    return result.returncode != 0 or result.stdout.strip() == 'true'
+
+
+def notify(title, text):
+    """Speaks up once the progress window is gone: a notification that goes
+    away by itself, so nothing waits on it."""
+    if not PROGRESS_REF:
+        return
+    try:
+        subprocess.Popen(
+            ['kdialog', '--title', title, '--passivepopup', text, '15'],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL, start_new_session=True)
+    except OSError:
+        pass
+
+
+def clock(seconds):
+    return '%d:%02d' % divmod(int(seconds), 60)
+
+
+def waiting(elapsed):
+    """The label while Steam takes its time over the rewrite: minutes at 96%
+    with nothing moving read as a hang, and a player closed the window over it."""
+    return 'Waiting for Steam to save the library...\n%s so far, it can take up to %s' % (
+        clock(elapsed), clock(steamctl.REWRITE_TIMEOUT))
 
 
 def stop_steam():
@@ -160,6 +210,10 @@ def main(argv=None):
     log('%s, %s\n' % (time.strftime('%Y-%m-%d %H:%M:%S'), system_line()))
     try:
         return run(a)
+    except Cancelled:
+        # The person stopped it, and nothing of theirs has changed yet
+        log('\nCANCELLED: the progress window was closed before Steam was touched')
+        return CANCELLED
     except Exception:
         # Whatever it is, the log has to name it: the log is all the player
         # has to send back
@@ -280,6 +334,10 @@ def run(a):
         log('proton: none chosen, it has to be picked in the game\'s Properties')
         problems.append('Proton')
 
+    # The last point where a closed window can stop the install with nothing
+    # of the person's changed: past it Steam is down and comes back with the game
+    if cancelled():
+        raise Cancelled()
     progress(82, 'Closing Steam...')
     if not stop_steam():
         log('Steam did not shut down - aborting without touching anything')
@@ -294,11 +352,17 @@ def run(a):
     si.backup(cfg_path, log=log)
 
     for attempt in (1, 2, 3):
+        # Another attempt restarts Steam once more, and with the window closed
+        # nobody would see why: the list goes back as it was instead
+        if attempt > 1 and cancelled():
+            log('\nFAILED: the progress window was closed, so no other attempt; '
+                'restoring the shortcut list')
+            break
         log('\n--- attempt %d ---' % attempt)
         failed = []
 
         if attempt > 1:
-            progress(82, 'Closing Steam...')
+            progress(82, 'Steam did not keep the game, trying again: attempt %d of 3...' % attempt)
             if not stop_steam():
                 log('Steam did not shut down - stopping, the backup is intact')
                 return 1
@@ -328,16 +392,21 @@ def run(a):
             si.restore(sc_backup, sc_path, log=log)
             return 1
 
-        progress(96, 'Waiting for Steam to save the library...')
-        rewritten = steamctl.wait_rewrite(sc_path, mtime, log=log)
+        progress(96, waiting(0))
+        rewritten = steamctl.wait_rewrite(
+            sc_path, mtime, log=log,
+            tick=lambda elapsed: progress(text=waiting(elapsed)))
         time.sleep(5)
 
         progress(99, 'Verifying...')
         log('verification after restart:')
         if not rewritten:
-            log('  Steam never rewrote the file, so this proves nothing yet')
+            # Another attempt would only wait the same way, and restart Steam
+            # once more for it: the file as it stands, with the client up, is
+            # all there is to check
+            log('  Steam never rewrote the file: checking it as it stands')
 
-        if si.verify(uid, appid, proton, expect_count=expect, log=log) and rewritten:
+        if si.verify(uid, appid, proton, expect_count=expect, log=log):
             if not step('uninstaller', install_uninstaller,
                         os.path.abspath(a.game_dir), a.recipe, log=log):
                 failed.append('uninstaller')
@@ -348,11 +417,19 @@ def run(a):
                 return PARTIAL
             log('\nINSTALLED on attempt %d' % attempt)
             return 0
-        log('changes did not survive, retrying')
+        log('changes did not survive')
+    else:
+        log('\nFAILED after three attempts, restoring the shortcut list')
 
-    # Out of attempts. Leave the shortcut list as we found it rather than as
-    # whatever the last round happened to produce.
-    log('\nFAILED after three attempts, restoring the shortcut list')
+    # Leave the shortcut list as we found it rather than as whatever the last
+    # round happened to produce. That takes one more restart of Steam, and a
+    # closed window leaves a notification to say why it goes down.
+    progress(text='Steam did not keep the game: putting your library back as it was...')
+    if cancelled():
+        notify(
+            name,
+            'Steam did not keep %s in the library. It restarts once more '
+            'to put your library back as it was.' % name)
     if stop_steam():
         si.restore(sc_backup, sc_path, log=log)
         start_steam()
@@ -398,7 +475,9 @@ def unpack_game(a, recipe):
 
 def unpack_progress():
     """Moves the bar from 3 to 80 percent as the bytes come out, a couple of
-    times a second at most: every move is two qdbus processes."""
+    times a second at most: every move is three qdbus processes, the look at
+    whether the window is still there included. A closed one stops the
+    unpacking where it is."""
     last = [0.0]
 
     def report(done, total):
@@ -406,6 +485,8 @@ def unpack_progress():
         if now - last[0] < 0.5 and done < total:
             return
         last[0] = now
+        if cancelled():
+            raise Cancelled()
         progress(
             3 + 77 * done // max(total, 1),
             'Extracting: %s of %s' % (unpack.human(done), unpack.human(total)))

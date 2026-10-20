@@ -50,7 +50,8 @@ SLUG=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["slug"])' 
 # ------------------------------------------------------------- progress
 # kdialog --progressbar hands back a DBus reference, and qdbus moves the bar
 # through it. Without it the screen freezes for a minute after the Proton
-# choice, and the person decides that everything has hung.
+# choice, and the person decides that everything has hung. The window has a
+# Cancel button of its own, and install.py is the one that answers it.
 QDBUS=$(command -v qdbus6 2>/dev/null || command -v qdbus 2>/dev/null || true)
 PROGRESS=""
 progress_open() {
@@ -256,6 +257,15 @@ and pick a Proton version.
 
 Details in:
 $LOG" 2>/dev/null || true
+            ;;
+        6)
+            # The window was closed while Steam was untouched: the person
+            # stopped the install, and nothing of theirs has changed
+            kdialog --title "Install cancelled" --icon dialog-information \
+                --msgbox "<b>$NAME</b> was not installed, and Steam was not touched.
+
+The files unpacked so far are in:
+$GAMEDIR" 2>/dev/null || true
             ;;
         *)
             # install.py writes its "ERROR: ..." lines for the person: what is
