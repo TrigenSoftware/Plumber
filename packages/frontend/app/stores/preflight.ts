@@ -14,7 +14,10 @@ import {
   preflight
 } from '~/services/checks'
 import { Artwork$ } from './artwork.ts'
-import { Build$ } from './build.ts'
+import {
+  Build$,
+  HasSavePicker$
+} from './build.ts'
 import { Game$ } from './game.ts'
 
 export type NoteLevel = 'error' | CheckLevel
@@ -50,6 +53,7 @@ export function Preflight$() {
     $error: $artworkError
   } = inject(Artwork$)
   const { $error: $buildError } = inject(Build$)
+  const hasSavePicker = inject(HasSavePicker$)
   /** From navigator.storage.estimate(), or null when it could not be asked. */
   const $storageAvailable = mountable(signal<number | null>(null))
   const measure = action(async () => {
@@ -101,11 +105,16 @@ export function Preflight$() {
     return notes
   })
 
-  // Measured while the checks are on screen, afresh for every archive
-  onMountEffect($storageAvailable, () => {
-    $archive()
-    void task($storageAvailable, measure())
-  })
+  // Measured while the checks are on screen, afresh for every archive. Only
+  // where the picker is: the check stands on the estimate Chromium gives (6.3),
+  // and Firefox gives the quota of the site instead, a few GB however much the
+  // disk the download goes to has free
+  if (hasSavePicker) {
+    onMountEffect($storageAvailable, () => {
+      $archive()
+      void task($storageAvailable, measure())
+    })
+  }
 
   return {
     $storageAvailable,

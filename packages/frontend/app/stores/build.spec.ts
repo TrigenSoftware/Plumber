@@ -9,6 +9,7 @@ import {
   InjectionContext,
   effect,
   inject,
+  provide,
   start,
   waitTasks
 } from '@nano_kit/store'
@@ -22,7 +23,7 @@ import {
 import { Artwork$ } from './artwork.ts'
 import {
   Build$,
-  CanSaveFiles$
+  HasSavePicker$
 } from './build.ts'
 import { Game$ } from './game.ts'
 
@@ -77,6 +78,35 @@ function pickFile(name = 'need-for-speed.run') {
   }
 }
 
+// A picker that breaks as it opens: something for a build to fail with
+function breakPicker() {
+  vi.stubGlobal('showSaveFilePicker', () => Promise.reject(new Error('The picker broke.')))
+}
+
+// A browser that saves the file as a download of its own: the Blob it is
+// handed and the link it is clicked through stay here to be looked at
+function catchDownloads() {
+  const blobs: Blob[] = []
+  const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+  vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+    blobs.push(blob as Blob)
+
+    return `blob:download-${blobs.length}`
+  })
+
+  return {
+    revoke,
+    // The links themselves, as what the clicks were called on
+    clicked: () => (click.mock.contexts as HTMLAnchorElement[]).map(link => ({
+      href: link.href,
+      download: link.download
+    })),
+    downloaded: async (index = 0) => new Uint8Array(await blobs[index].arrayBuffer())
+  }
+}
+
 // meta.tar.gz unpacked the way GNU gzip on SteamOS reads it: the decoder here
 // takes the padding and the archive after the gzip stream for junk and errors,
 // but only once it has handed out everything meta holds
@@ -122,8 +152,8 @@ function filesOf(tar: Uint8Array) {
 // The form and the build panel on screen, as they are while a build is set up
 const stops: (() => void)[] = []
 
-async function setup(file = archiveOf()) {
-  const context = new InjectionContext()
+async function setup(file = archiveOf(), hasSavePicker = true) {
+  const context = new InjectionContext([provide(HasSavePicker$, hasSavePicker)])
   const game = inject(Game$, context)
   const artwork = inject(Artwork$, context)
   const build = inject(Build$, context)
@@ -140,7 +170,7 @@ async function setup(file = archiveOf()) {
 }
 
 describe('stores', () => {
-  describe('CanSaveFiles$', () => {
+  describe('HasSavePicker$', () => {
     afterEach(() => {
       vi.unstubAllGlobals()
     })
@@ -148,18 +178,19 @@ describe('stores', () => {
     it('should say yes where the browser has showSaveFilePicker', () => {
       vi.stubGlobal('showSaveFilePicker', () => Promise.reject(new Error('Not picked in a test')))
 
-      expect(inject(CanSaveFiles$, new InjectionContext())).toBe(true)
+      expect(inject(HasSavePicker$, new InjectionContext())).toBe(true)
     })
 
     it('should say no where it has none, as Firefox and Safari do', () => {
       // happy-dom has none either
-      expect(inject(CanSaveFiles$, new InjectionContext())).toBe(false)
+      expect(inject(HasSavePicker$, new InjectionContext())).toBe(false)
     })
   })
 
   describe('Build$', () => {
     afterEach(() => {
       vi.unstubAllGlobals()
+      vi.restoreAllMocks()
       stops.splice(0).forEach(stop => stop())
     })
 
@@ -266,6 +297,7 @@ describe('stores', () => {
     it('should forget the last failure once another build starts', async () => {
       const { build } = await setup()
 
+      breakPicker()
       build.build()
       await waitTasks(build.$phase)
 
@@ -402,16 +434,6 @@ describe('stores', () => {
       expect(build.$error()).toBe('There is not enough space on the disk.')
     })
 
-    it('should fail with the reason in a browser without the file picker', async () => {
-      const { build } = await setup()
-
-      build.build()
-      await waitTasks(build.$phase)
-
-      expect(build.$phase()).toBe('failed')
-      expect(build.$error()).toContain('showSaveFilePicker')
-    })
-
     it('should start over when the archive changes', async () => {
       const { game, build } = await setup()
 
@@ -428,6 +450,7 @@ describe('stores', () => {
     it('should forget why the last build failed when another archive comes', async () => {
       const { game, build } = await setup()
 
+      breakPicker()
       build.build()
       await waitTasks(build.$phase)
       game.$file(archiveOf('Hot Pursuit 2.zip'))
@@ -473,6 +496,139 @@ describe('stores', () => {
       expect(build.$phase()).toBe('idle')
       expect(build.$progress()).toBe(0)
       expect(build.$savedAs()).toBe('')
+    })
+
+    describe('without a save picker', () => {
+      it('should hand the installer to the browser to download under the name of the game', async () => {
+        const { build } = await setup(archiveOf(), false)
+        const { clicked } = catchDownloads()
+
+        build.build()
+        await waitTasks(build.$phase)
+
+        expect(clicked()).toEqual([
+          {
+            href: 'blob:download-1',
+            download: 'need-for-speed.run'
+          }
+        ])
+      })
+
+      it('should not open a file picker, even one the browser has', async () => {
+        const { build } = await setup(archiveOf(), false)
+        const { showSaveFilePicker } = pickFile()
+
+        catchDownloads()
+        build.build()
+        await waitTasks(build.$phase)
+
+        expect(showSaveFilePicker).not.toHaveBeenCalled()
+      })
+
+      it('should download header, meta and the archive', async () => {
+        const file = archiveOf()
+        const { build } = await setup(file, false)
+        const { downloaded } = catchDownloads()
+
+        build.build()
+        await waitTasks(build.$phase)
+
+        const run = await downloaded()
+        const archive = new Uint8Array(await file.arrayBuffer())
+
+        expect(decoder.decode(run.subarray(0, 10))).toBe('#!/bin/sh\n')
+        expect((run.byteLength - archive.byteLength) % BLOCK_SIZE).toBe(0)
+        expect(run.subarray(run.byteLength - archive.byteLength)).toEqual(archive)
+      })
+
+      it('should pack the recipe the human settled on', async () => {
+        const { game, build } = await setup(archiveOf(), false)
+        const { downloaded } = catchDownloads()
+
+        game.$name('Hot Pursuit 2')
+        build.build()
+        await waitTasks(build.$phase)
+
+        const recipe = filesOf(await unpackMeta(await downloaded())).get('./recipe.json')
+
+        expect(JSON.parse(decoder.decode(recipe))).toMatchObject({
+          name: 'Hot Pursuit 2',
+          exe: 'Need for Speed/speed.exe'
+        })
+      })
+
+      it('should be done once the download is handed over, under the name it was given', async () => {
+        const { build } = await setup(archiveOf(), false)
+
+        catchDownloads()
+        build.build()
+        await waitTasks(build.$phase)
+
+        expect(build.$phase()).toBe('done')
+        expect(build.$progress()).toBe(1)
+        expect(build.$savedAs()).toBe('need-for-speed.run')
+        expect(build.$error()).toBeNull()
+      })
+
+      it('should keep the last download until another build is handed over', async () => {
+        const { build } = await setup(archiveOf(), false)
+        const { revoke } = catchDownloads()
+
+        build.build()
+        await waitTasks(build.$phase)
+
+        expect(revoke).not.toHaveBeenCalled()
+
+        build.build()
+        await waitTasks(build.$phase)
+
+        expect(revoke).toHaveBeenCalledExactlyOnceWith('blob:download-1')
+      })
+
+      it('should let the download go when the archive changes', async () => {
+        const { game, build } = await setup(archiveOf(), false)
+        const { revoke } = catchDownloads()
+
+        build.build()
+        await waitTasks(build.$phase)
+        game.$file(null)
+
+        expect(revoke).toHaveBeenCalledExactlyOnceWith('blob:download-1')
+      })
+
+      it('should download nothing for a build of an archive no longer there', async () => {
+        const { game, build } = await setup(archiveOf(), false)
+        const { clicked } = catchDownloads()
+
+        build.build()
+        game.$file(null)
+        await waitTasks(build.$phase)
+
+        expect(clicked()).toEqual([])
+        expect(build.$phase()).toBe('idle')
+        expect(build.$savedAs()).toBe('')
+      })
+
+      it('should fail with the reason when the installer cannot be put together', async () => {
+        const { artwork, build } = await setup(archiveOf(), false)
+        const unreadable = new File([], 'cover.png', {
+          type: 'image/png'
+        })
+
+        catchDownloads()
+        unreadable.arrayBuffer = () => Promise.reject(new Error('cover.png could not be read.'))
+        artwork.$slots({
+          portrait: {
+            ...COVER,
+            file: unreadable
+          }
+        })
+        build.build()
+        await waitTasks(build.$phase)
+
+        expect(build.$phase()).toBe('failed')
+        expect(build.$error()).toBe('cover.png could not be read.')
+      })
     })
   })
 })

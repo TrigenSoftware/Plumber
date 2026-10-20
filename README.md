@@ -43,14 +43,15 @@ app/
   assets/       icons, fonts, images
   shared/       app-wide constants, types, pure utils
   services/     zip (central directory, Zip64), exe scoring, DLL wrappers,
-                artwork, recipe, tar + gzip, .run assembly, preflight checks
+                artwork, recipe, tar + gzip, .run assembly, browser downloads,
+                preflight checks
   stores/       game, artwork, build, preflight: the wizard state
   uikit/        presentational components and design tokens
   blocks/       ArchivePicker, GameForm, ArtworkGrid, PreflightList, BuildPanel
   pages/        Home
 ```
 
-The UI is written with [nanoviews](https://github.com/TrigenSoftware/nanoviews) and [@nano_kit/store](https://nano-kit.js.org/store). The build runs in Chromium only: it streams the `.run` to disk through `showSaveFilePicker`.
+The UI is written with [nanoviews](https://github.com/TrigenSoftware/nanoviews) and [@nano_kit/store](https://nano-kit.js.org/store). Where the browser has `showSaveFilePicker` (Chrome, Edge), the build streams the `.run` to disk through it. Anywhere else (Firefox, Safari, Brave) the browser downloads it as a `Blob` made of the header, meta and the archive `File` itself, so the archive is never read into memory either.
 
 ## Development
 

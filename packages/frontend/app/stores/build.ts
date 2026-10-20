@@ -8,6 +8,7 @@ import {
   task,
   inject
 } from '@nano_kit/store'
+import { startDownload } from '~/services/download'
 import {
   buildRecipe,
   slugify
@@ -20,21 +21,22 @@ import { Game$ } from './game.ts'
 export type BuildPhase = 'idle' | 'building' | 'done' | 'failed'
 
 /**
- * Whether this browser can save the installer at all: the build streams the
- * `.run` to disk through showSaveFilePicker, which only Chromium-based browsers
- * have (8). A token rather than a check in place, so a story or a test can
- * stand in for either kind of browser.
+ * Whether this browser has showSaveFilePicker, which only Chromium-based ones
+ * have, and Brave switches off: with it the build streams the `.run` into the
+ * file the human picks and follows the bytes as they go, without it the
+ * browser downloads the file on its own (6.2). A token rather than a check in
+ * place, so a story or a test can stand in for either kind of browser.
  *
  * @returns Whether the picker is there.
  */
-export function CanSaveFiles$() {
+export function HasSavePicker$() {
   return typeof showSaveFilePicker === 'function'
 }
 
 /**
- * Builds the `.run` and streams it straight to the file the human picked.
- * Chromium only: Firefox has no showSaveFilePicker, and building through a
- * Blob would cap the size at a gigabyte or two (8).
+ * Builds the `.run` and saves it: straight into the file the human picked
+ * where the browser has the picker, as a download of the browser's own
+ * elsewhere. Either way the archive is never held in memory (6.2).
  *
  * @returns The store.
  */
@@ -52,10 +54,12 @@ export function Build$() {
     $problems,
     $error: $artworkError
   } = inject(Artwork$)
+  const hasSavePicker = inject(HasSavePicker$)
   const $phase = mountable(signal<BuildPhase>('idle'))
   // A share of the whole file, from 0 to 1
   const $progress = signal(0)
-  // The name of the file the human picked, once it is written
+  // The name the file is saved under, once it is: the one the human picked,
+  // or the one the download was given
   const $savedAs = signal('')
   // Why the last build failed
   const $error = mountable(signal<string | null>(null))
@@ -69,6 +73,9 @@ export function Build$() {
   ))
   // A build of an archive that is no longer there writes nothing back
   let ticket = 0
+  // Lets the last download go: no sooner than the next build or archive, by
+  // when it is surely under way
+  let releaseDownload: (() => void) | null = null
   const run = async (runTicket: number) => {
     const isCurrent = () => runTicket === ticket
 
@@ -91,6 +98,7 @@ export function Build$() {
         userData: $userDataList(),
         dllOverrides: $overrides()
       })
+      const fileName = `${slugify(recipe.name)}.run`
 
       // What went wrong is told about the last attempt: a new build clears an
       // image that could not be read as well, as it always did
@@ -103,44 +111,58 @@ export function Build$() {
 
       // Asked before anything is awaited: the user activation of the click does
       // not survive an await, and without it the picker refuses to open.
-      const handle = await showSaveFilePicker({
-        suggestedName: `${slugify(recipe.name)}.run`,
-        types: [
-          {
-            description: 'Self-extracting installer',
-            accept: {
-              'application/x-sh': ['.run']
+      const handle = hasSavePicker
+        ? await showSaveFilePicker({
+          suggestedName: fileName,
+          types: [
+            {
+              description: 'Self-extracting installer',
+              accept: {
+                'application/x-sh': ['.run']
+              }
             }
-          }
-        ]
-      })
+          ]
+        })
+        : null
       // Loaded only now: the tar writer and the header are needed by the build
       // alone, so they stay out of what the page loads up front, like the
       // installer scripts they pack. Not before the picker, which needs the click.
       const {
         buildHeader,
         buildMeta,
+        runBlob,
         writeRunFile
       } = await import('~/services/bundle')
       const meta = await buildMeta(recipe, items)
       const header = buildHeader(meta.byteLength / BLOCK_SIZE)
 
-      for await (const { written, total } of writeRunFile(await handle.createWritable(), {
-        header,
-        meta,
-        payload: archive.stream(),
-        payloadSize: archive.size
-      })) {
-        if (isCurrent()) {
-          $progress(written / total)
+      if (handle) {
+        for await (const { written, total } of writeRunFile(await handle.createWritable(), {
+          header,
+          meta,
+          payload: archive.stream(),
+          payloadSize: archive.size
+        })) {
+          if (isCurrent()) {
+            $progress(written / total)
+          }
         }
+      } else if (isCurrent()) {
+        // Nothing is on disk before the download, so a build of an archive no
+        // longer there leaves nothing behind
+        releaseDownload?.()
+        releaseDownload = startDownload(runBlob({
+          header,
+          meta,
+          payload: archive
+        }), fileName)
       }
 
       if (isCurrent()) {
         batch(() => {
           $phase('done')
           $progress(1)
-          $savedAs(handle.name)
+          $savedAs(handle?.name ?? fileName)
         })
       }
     } catch (error) {
@@ -184,6 +206,7 @@ export function Build$() {
     }
 
     ticket += 1
+    releaseDownload?.()
     batch(() => {
       $phase('idle')
       $progress(0)

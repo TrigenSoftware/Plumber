@@ -9,6 +9,7 @@ import {
   STORE_UNMOUNT_DELAY,
   InjectionContext,
   inject,
+  provide,
   start,
   waitTasks
 } from '@nano_kit/store'
@@ -18,7 +19,10 @@ import {
   makeZip
 } from '~/services/zip/zip.mock'
 import { Artwork$ } from './artwork.ts'
-import { Build$ } from './build.ts'
+import {
+  Build$,
+  HasSavePicker$
+} from './build.ts'
 import { Game$ } from './game.ts'
 import { Preflight$ } from './preflight.ts'
 
@@ -66,8 +70,8 @@ function archiveOf(name = 'Need for Speed.zip', entries = ENTRIES) {
 // What is on screen: the summary of the archive always, the checks when a test shows them
 const stops: (() => void)[] = []
 
-function setup() {
-  const context = new InjectionContext()
+function setup(hasSavePicker = true) {
+  const context = new InjectionContext([provide(HasSavePicker$, hasSavePicker)])
   const game = inject(Game$, context)
 
   stops.push(start(game.$archive))
@@ -208,6 +212,18 @@ describe('stores', () => {
 
       expect(preflight.$checks()).toEqual([emptySlots(5)])
       expect(estimate).not.toHaveBeenCalled()
+    })
+
+    it('should not ask for the free space where the browser downloads the file itself', async () => {
+      const { game, preflight } = setup(false)
+      const estimate = reportStorage(1_000, 900)
+
+      stops.push(start(preflight.$checks))
+      game.$file(archiveOf())
+      await waitTasks(preflight.$checks)
+
+      expect(estimate).not.toHaveBeenCalled()
+      expect(preflight.$checks()).toEqual([emptySlots(5)])
     })
 
     it('should ask for the free space again when another archive comes', async () => {

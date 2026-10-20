@@ -508,7 +508,7 @@ The dialog asks **what exactly to remove**, with radio buttons, because the diff
 
 ## 6. The web application
 
-A static site with no backend. Chromium only, for streaming to disk (Firefox has no `showSaveFilePicker`).
+A static site with no backend. Where the browser has `showSaveFilePicker` (Chrome, Edge), the `.run` is streamed into a file the person picks; anywhere else (Firefox, Safari, and Brave, which switches the picker off) the browser downloads it (6.2).
 
 ### 6.1 Reading the zip
 
@@ -538,6 +538,16 @@ await file.stream().pipeTo(out, {preventClose: true});
 
 Nothing is held in memory. The progress is by bytes written.
 
+Without the picker the same three parts go into one `Blob`, and the browser downloads it through a link with `download`:
+
+```js
+const run = new Blob([header, meta, file], {type: 'application/octet-stream'});
+```
+
+The archive goes in as the `File` itself, which a `Blob` keeps as a reference to the disk, so nothing is held in memory here either: the download reads the archive from disk as it goes. The cap of ~1-2 GB applies to a `Blob` built from bytes in memory, not to this one. **Verified** on the built site with a 5 GiB Zip64 archive: in Firefox 157 the download started 0.3 s after the click and took 27 s, the browser grew by 54 MiB with three such downloads running at once, GNU `dd` and `tar` read meta out of the `.run`, and the archive in it matched the original byte for byte. Chromium 156 with the picker removed, as in Brave, did the same in 15 s. Safari is not verified.
+
+The price is control: the person picks no folder unless the browser asks, and the progress is shown by the browser, not by the page. The address of the `Blob` is kept until the next build or another archive; a download already under way goes on without it, verified in both browsers.
+
 ### 6.3 Checks before building
 
 All of them warn, and none of them blocks the button:
@@ -545,7 +555,7 @@ All of them warn, and none of them blocks the button:
 - there is not a single `.exe` in the archive (the select is empty, there is nothing to build)
 - the UTF-8 bit 11 is not set **and** there are non-ASCII names → Cyrillic names will arrive garbled, suggest 7-Zip
 - the size is > 4 GB → a reminder about exFAT
-- `navigator.storage.estimate()` < the size of the archive → there will not be enough space (Chrome writes into a temporary swap file and swaps it in at the end)
+- `navigator.storage.estimate()` < the size of the archive → there will not be enough space (Chrome writes into a temporary swap file and swaps it in at the end). Only where the picker is: Firefox 157 reports the quota of the site instead, 7.4 GiB on a disk with 51 GB free
 - the chosen exe got a negative weight under 7.2.1 (the person picked by hand what we ranked down): warn, but do not stand in the way
 - the artwork is not filled in
 
@@ -797,7 +807,7 @@ Drop a finished `.run` back in → read `recipe.json` from the first 72 KB → r
 
 ## 8. Limitations
 
-- **Chromium only.** In Firefox the build would go through a Blob in one piece, capped at ~1-2 GB
+- **Without the picker the browser does the saving.** Firefox, Safari and Brave get the `.run` as an ordinary download (6.2): no choice of folder unless the browser asks, no progress on the page, and no warning about free space (6.3)
 - **Twice the disk space** while creating the archive on the source machine
 - **The file arrives without the execute bit**, and not only from a Windows file system: the browser drops it on any download. Verified on a file downloaded from our own server
 - **"Run in Konsole" does not help**, contrary to an earlier edition of this section. Worked out from `/usr/share/kio/servicemenus/konsolerun.desktop`:

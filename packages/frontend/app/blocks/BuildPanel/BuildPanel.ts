@@ -18,7 +18,10 @@ import {
 } from 'nanoviews'
 import type { ExeCandidate } from '~/services/exe'
 import { formatSize } from '~/shared/utils'
-import { Build$ } from '~/stores/build'
+import {
+  Build$,
+  HasSavePicker$
+} from '~/stores/build'
 import { Game$ } from '~/stores/game'
 import { Button } from '~/uikit/Button'
 import { ProgressBar } from '~/uikit/ProgressBar'
@@ -28,8 +31,10 @@ import styles from './BuildPanel.module.css'
 export type BuildPanelProps = Attributes<'div'>
 
 interface InstructionsProps {
-  /** The name of the file the human picked, empty when there is none to tell. */
+  /** The name the file is saved under, empty when there is none to tell. */
   savedAs: Signalish<string>
+  /** The browser saves the file as a download of its own, which may still be under way. */
+  downloading: boolean
 }
 
 /**
@@ -59,7 +64,10 @@ function captionOf(progress: number, archive: File | null) {
 }
 
 // What to do with the file once it is on disk
-const Instructions = component$(({ savedAs }: InstructionsProps) => (
+const Instructions = component$(({
+  savedAs,
+  downloading
+}: InstructionsProps) => (
   div({
     class: styles.instructions
   })(
@@ -68,7 +76,9 @@ const Instructions = component$(({ savedAs }: InstructionsProps) => (
     })(
       when(
         savedAs,
-        text`${savedAs} is ready. Copy it to SteamOS, then, in Desktop Mode:`,
+        downloading
+          ? text`The browser is downloading ${savedAs}. Once it is done, copy the file to SteamOS, then, in Desktop Mode:`
+          : text`${savedAs} is ready. Copy it to SteamOS, then, in Desktop Mode:`,
         'Copy it to SteamOS, then, in Desktop Mode:'
       )
     ),
@@ -95,7 +105,8 @@ const Instructions = component$(({ savedAs }: InstructionsProps) => (
 
 /**
  * Builds the installer and follows it to disk: how far the writing got while
- * it lasts, and what to do with the file once it is there.
+ * it lasts, and what to do with the file once it is there. A browser without
+ * the picker downloads the file on its own and shows the progress itself.
  */
 export const BuildPanel = component$(({
   class: className,
@@ -113,6 +124,7 @@ export const BuildPanel = component$(({
     $canBuild,
     build
   } = inject(Build$)
+  const hasSavePicker = inject(HasSavePicker$)
   // Once the file is written, building it again stays at hand - for a form
   // changed since - but is no longer the thing to do
   const $done = is($phase, 'done')
@@ -138,7 +150,7 @@ export const BuildPanel = component$(({
           () => summaryOf($selected(), $archive())
         )
       ),
-      if_($building)(
+      hasSavePicker && if_($building)(
         () => ProgressBar({
           label: 'Writing the installer',
           value: $progress
@@ -148,7 +160,8 @@ export const BuildPanel = component$(({
       ),
       if_($done)(
         () => Instructions({
-          savedAs: $savedAs
+          savedAs: $savedAs,
+          downloading: !hasSavePicker
         })
       )
     )

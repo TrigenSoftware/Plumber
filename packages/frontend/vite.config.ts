@@ -17,8 +17,9 @@ export default defineConfig({
     lightningcss: {
       // Vite's default targets, the widely available baseline, would compile
       // light-dark() into variables switched by prefers-color-scheme, which a
-      // color-scheme forced on the root cannot reach. The build is Chromium-only
-      // (showSaveFilePicker), and Chromium has light-dark() natively
+      // color-scheme forced on the root cannot reach. The browsers the page is
+      // for have light-dark() natively: Chromium since 123, Firefox since 120,
+      // Safari since 17.5
       exclude: Features.LightDark,
       drafts: {
         customMedia: true

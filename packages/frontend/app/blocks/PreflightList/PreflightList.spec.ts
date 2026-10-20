@@ -8,12 +8,16 @@ import { render } from '@nanoviews/testing-library'
 import {
   InjectionContext,
   inject,
+  provide,
   waitTasks
 } from 'nanoviews/store'
 import { context$ } from 'nanoviews'
 import type { ArtItem } from '~/services/artwork'
 import { Artwork$ } from '~/stores/artwork'
-import { Build$ } from '~/stores/build'
+import {
+  Build$,
+  HasSavePicker$
+} from '~/stores/build'
 import { Game$ } from '~/stores/game'
 import { Preflight$ } from '~/stores/preflight'
 import calloutStyles from '~/uikit/Callout/Callout.module.css'
@@ -71,9 +75,10 @@ function emptySlots(empty: number) {
 }
 
 // The list in a context of its own, so the test holds the very stores it shows.
-// It comes on screen once the archive is read, as it does on the page.
+// It comes on screen once the archive is read, as it does on the page, in a
+// browser with the picker, where the free space is asked for.
 async function setup(archive: File | null = sampleArchive(), props?: PreflightListProps) {
-  const context = new InjectionContext()
+  const context = new InjectionContext([provide(HasSavePicker$, true)])
   const game = inject(Game$, context)
   const { $notes } = inject(Preflight$, context)
 

@@ -11,6 +11,7 @@ import {
 } from '~/services/tar'
 import type {
   BuildProgress,
+  RunBlobParts,
   RunParts
 } from './bundle.types.ts'
 
@@ -175,4 +176,20 @@ export async function* writeRunFile(
   } finally {
     writer.releaseLock()
   }
+}
+
+/**
+ * The `.run` for a browser that can only download it: header, meta and the
+ * archive in one Blob. The archive goes in as the File itself, which a Blob
+ * keeps as a reference to the disk, and the download reads it from there as it
+ * goes, so an 8 GB game costs no more memory than a small one here either
+ * (6.2).
+ *
+ * @returns The Blob, typed as plain bytes, so the browser saves it rather than
+ * opens it.
+ */
+export function runBlob(parts: RunBlobParts) {
+  return new Blob([parts.header, parts.meta, parts.payload], {
+    type: 'application/octet-stream'
+  })
 }
