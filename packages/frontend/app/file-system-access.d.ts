@@ -1,7 +1,8 @@
 /**
- * The File System Access API is not in the TypeScript DOM library yet, and the
- * build depends on it: streaming to a picked file is what keeps an 8 GB archive
- * out of memory (6.2). Chromium only - see the limitations in section 8.
+ * The File System Access API is not in the TypeScript DOM library yet. Where a
+ * browser has it, which only Chromium-based ones do, Brave aside, the build
+ * streams into the file the human picks; anywhere else the browser downloads
+ * the file (6.2).
  *
  * A module that declares into the global scope rather than a script: the
  * picker is a browser global, and saying so outright leaves no-implicit-globals

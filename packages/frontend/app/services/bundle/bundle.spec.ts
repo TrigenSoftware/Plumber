@@ -9,6 +9,7 @@ import {
   buildHeader,
   buildMeta,
   packMeta,
+  runBlob,
   writeRunFile
 } from './bundle.ts'
 
@@ -232,6 +233,35 @@ describe('services', () => {
         await run.return(undefined)
 
         expect(sink.chunks.flatMap(chunk => [...chunk])).toHaveLength(BLOCK_SIZE)
+      })
+    })
+
+    describe('runBlob', () => {
+      it('should lay out header, meta and payload in that order', async () => {
+        const payload = new File([new Uint8Array([9, 9, 9])], 'game.zip')
+        const meta = await buildMeta(RECIPE, [])
+        const header = buildHeader(meta.byteLength / BLOCK_SIZE)
+        const run = [
+          ...new Uint8Array(await runBlob({
+            header,
+            meta,
+            payload
+          }).arrayBuffer())
+        ]
+
+        expect(run.slice(0, BLOCK_SIZE)).toEqual([...header])
+        expect(run.slice(BLOCK_SIZE, BLOCK_SIZE + meta.byteLength)).toEqual([...meta])
+        expect(run.slice(BLOCK_SIZE + meta.byteLength)).toEqual([9, 9, 9])
+      })
+
+      it('should be plain bytes, for the browser to save rather than open', async () => {
+        const meta = await buildMeta(RECIPE, [])
+
+        expect(runBlob({
+          header: buildHeader(1),
+          meta,
+          payload: new Blob()
+        }).type).toBe('application/octet-stream')
       })
     })
   })

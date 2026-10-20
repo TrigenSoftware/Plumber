@@ -5,11 +5,14 @@ import type {
 } from '@nanoviews/storybook'
 import {
   batch,
-  inject
+  inject,
+  provide
 } from 'nanoviews/store'
+import { context$ } from 'nanoviews'
 import {
   type BuildPhase,
-  Build$
+  Build$,
+  HasSavePicker$
 } from '~/stores/build'
 import { withGame } from '../shared/game.mock.ts'
 import { BuildPanel } from './BuildPanel.ts'
@@ -47,6 +50,21 @@ function withBuild({
   }
 }
 
+/**
+ * Puts the story in a browser without showSaveFilePicker, as Firefox and
+ * Safari are, which downloads the file on its own. Listed after withBuild, so
+ * the build it sets up is the one of this browser.
+ *
+ * @returns The decorator.
+ */
+function withoutSavePicker(): Decorator {
+  return story => (
+    context$(provide(HasSavePicker$, false))(
+      story()
+    )
+  )
+}
+
 const meta: Meta<typeof BuildPanel> = {
   title: 'Blocks/BuildPanel',
   component: BuildPanel,
@@ -80,5 +98,17 @@ export const Done: Story = {
       progress: 1,
       savedAs: 'need-for-speed.run'
     })
+  ]
+}
+
+/** Handed to the browser as a download: it shows the progress, the page only what comes next. */
+export const Downloading: Story = {
+  decorators: [
+    withBuild({
+      phase: 'done',
+      progress: 1,
+      savedAs: 'need-for-speed.run'
+    }),
+    withoutSavePicker()
   ]
 }

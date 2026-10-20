@@ -14,11 +14,15 @@ import {
 import {
   InjectionContext,
   inject,
+  provide,
   waitTasks
 } from 'nanoviews/store'
 import { context$ } from 'nanoviews'
 import { formatSize } from '~/shared/utils'
-import { Build$ } from '~/stores/build'
+import {
+  Build$,
+  HasSavePicker$
+} from '~/stores/build'
 import { Game$ } from '~/stores/game'
 import { sampleArchive } from '../shared/game.mock.ts'
 import buttonStyles from '~/uikit/Button/Button.module.css'
@@ -33,8 +37,8 @@ const STEPS = [
 ]
 
 // The panel over a game of its own, with the archive read the way a drop reads it
-async function setup(archive: File | null = sampleArchive()) {
-  const context = new InjectionContext()
+async function setup(archive: File | null = sampleArchive(), hasSavePicker = true) {
+  const context = new InjectionContext([provide(HasSavePicker$, hasSavePicker)])
   const game = inject(Game$, context)
   const build = inject(Build$, context)
 
@@ -63,6 +67,13 @@ function pickFile(name = 'need-for-speed.run') {
   return showSaveFilePicker
 }
 
+// A browser that downloads the file on its own: the download goes nowhere
+function catchDownloads() {
+  vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:download')
+  vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+}
+
 function buildButton() {
   return screen.getByRole<HTMLButtonElement>('button')
 }
@@ -71,6 +82,7 @@ describe('blocks', () => {
   describe('BuildPanel', () => {
     afterEach(() => {
       vi.unstubAllGlobals()
+      vi.restoreAllMocks()
     })
 
     it('should ask for an archive before anything else', async () => {
@@ -249,6 +261,30 @@ describe('blocks', () => {
       game.$file(null)
 
       expect(screen.queryByRole('list')).toBeNull()
+    })
+
+    describe('without a save picker', () => {
+      it('should show no progress while building: the browser shows it', async () => {
+        const { build } = await setup(sampleArchive(), false)
+
+        build.$phase('building')
+
+        expect(screen.queryByRole('progressbar')).toBeNull()
+      })
+
+      it('should say the browser is downloading the installer once it is handed over', async () => {
+        const { build } = await setup(sampleArchive(), false)
+
+        catchDownloads()
+        fireEvent.click(buildButton())
+        await waitTasks(build.$phase)
+
+        expect(screen.getByText(
+          'The browser is downloading need-for-speed.run. Once it is done, copy the file to SteamOS, '
+          + 'then, in Desktop Mode:'
+        )).toBeDefined()
+        expect(within(screen.getByRole('list')).getAllByRole('listitem').map(step => step.textContent)).toEqual(STEPS)
+      })
     })
 
     it('should keep the class passed by the consumer', () => {

@@ -24,7 +24,7 @@ import {
   NEW_ISSUE_URL,
   REPOSITORY_URL
 } from '~/shared/constants'
-import { CanSaveFiles$ } from '~/stores/build'
+import { HasSavePicker$ } from '~/stores/build'
 import { Game$ } from '~/stores/game'
 import {
   type HomeProps,
@@ -34,8 +34,6 @@ import styles from './Home.module.css'
 
 const LOW_STORAGE = 'The browser reports about 100 B of free space, less than '
   + 'the archive. The build writes through a temporary file, so it may run out part way.'
-const UNSUPPORTED = 'This browser is not supported. Plumber needs a Chromium-based browser, such as '
-  + 'Chrome or Edge, to save the installer.'
 
 function dropZone() {
   return screen.getByLabelText<HTMLInputElement>('Drop the game archive here')
@@ -130,18 +128,6 @@ describe('pages', () => {
       expect(link.href).toBe(NEW_ISSUE_URL)
       expect(link.target).toBe('_blank')
       expect(link.rel).toBe('noopener noreferrer')
-    })
-
-    it('should say so up front when the browser cannot save the installer', async () => {
-      await setup(null, {}, [provide(CanSaveFiles$, false)])
-
-      expect(screen.getByText(UNSUPPORTED)).toBeDefined()
-    })
-
-    it('should not warn about a browser that can save the installer', async () => {
-      await setup(null, {}, [provide(CanSaveFiles$, true)])
-
-      expect(screen.queryByText(UNSUPPORTED)).toBeNull()
     })
 
     it('should show how it works ahead of the drop zone', async () => {
@@ -245,7 +231,8 @@ describe('pages', () => {
         }
       })
 
-      await setup(sampleArchive())
+      // Asked for only where the picker is
+      await setup(sampleArchive(), {}, [provide(HasSavePicker$, true)])
 
       // The free space is asked for once the notes come on screen, with the archive
       expect(await screen.findByText(LOW_STORAGE)).toBeDefined()

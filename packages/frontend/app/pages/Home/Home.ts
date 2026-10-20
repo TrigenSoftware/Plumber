@@ -21,7 +21,6 @@ import {
   NEW_ISSUE_URL,
   REPOSITORY_URL
 } from '~/shared/constants'
-import { CanSaveFiles$ } from '~/stores/build'
 import { Game$ } from '~/stores/game'
 import { Callout } from '~/uikit/Callout'
 import mixins from '~/uikit/mixins.module.css'
@@ -71,7 +70,6 @@ export const Home = component$(({
   ...props
 }: HomeProps) => {
   const { $archive } = inject(Game$)
-  const canSave = inject(CanSaveFiles$)
 
   return (
     main({
@@ -125,14 +123,6 @@ export const Home = component$(({
             'open an issue on GitHub'
           ),
           '.'
-        ),
-        // Anywhere else the archive can be read but the installer never saved,
-        // so the page says so before anything starts
-        !canSave && Callout({
-          tone: 'error'
-        })(
-          'This browser is not supported. Plumber needs a Chromium-based browser, such as '
-          + 'Chrome or Edge, to save the installer.'
         )
       ),
       // Ahead of the drop zone: the first steps are done before the page is
