@@ -237,13 +237,18 @@ progress_pct 100
 progress_close
 
 if [ -z "$DRYRUN" ] && [ -n "$GUI" ] && have kdialog; then
+    # install.py writes "NOTE: ..." lines for the person: something that did
+    # not go as planned without making the game any less installed
+    _notes=$(grep '^NOTE: ' "$LOG" 2>/dev/null | cut -c7- || true)
     case $RC in
         0)
             kdialog --title "Done" --icon dialog-ok \
                 --msgbox "<b>$NAME</b> is installed.
 
 It is now in your Steam library.
-If you don't see it, switch library pages to refresh." 2>/dev/null || true
+If you don't see it, switch library pages to refresh.${_notes:+
+
+$_notes}" 2>/dev/null || true
             ;;
         4)
             # The game is in the library, but a step after the shortcut did not
@@ -253,7 +258,9 @@ If you don't see it, switch library pages to refresh." 2>/dev/null || true
 
 If the game does not start, open its Properties, then Compatibility,
 turn on \"Force the use of a specific Steam Play compatibility tool\"
-and pick a Proton version.
+and pick a Proton version.${_notes:+
+
+$_notes}
 
 Details in:
 $LOG" 2>/dev/null || true

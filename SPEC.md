@@ -302,11 +302,12 @@ There are no templates any more: `launch.sh` and `.desktop` are not generated (2
   "prefix_arch": "win32",
   "user_data": ["SAVES"],
   "dll_overrides": ["dinput8"],
+  "controller_layout": null,
   "generator": "plumber 1.0.0"
 }
 ```
 
-There is no Proton version here: it is asked for at install time (2.8). `user_data` serves two purposes: skipping those folders when installing over an existing copy, and `mkdir -p` on a clean install (5.1 step 3). `dll_overrides` is the decision from 7.3.1. The recipe is needed for rebuilding (7.7) and for debugging.
+There is no Proton version here: it is asked for at install time (2.8). `user_data` serves two purposes: skipping those folders when installing over an existing copy, and `mkdir -p` on a clean install (5.1 step 3). `dll_overrides` is the decision from 7.3.1. `controller_layout` is the Workshop ID of a controller layout, or null (7.8). The recipe is needed for rebuilding (7.7) and for debugging.
 
 ---
 
@@ -490,7 +491,7 @@ The consequences: `protontricks` finds the game the normal way (it has both the 
 
 - `--dry-run` prints every path and command and does nothing `[MVP]`. **Done and verified**
 - `--uninstall` is **done**; it turned out to be needed earlier than `[v2]`: without it there was nothing to prepare a machine for testing the installer with
-- `--purge` removes the game folder and the `compatdata/` prefix together with the shortcut, and only from `<folder>/<slug>/game` that is neither a link nor the home folder. The uninstaller deletes the folder it sits in, and a copy carried elsewhere along with its `.plumber` would take that folder with it; anything else stops the uninstall before Steam is touched (exit code 5)
+- `--purge` removes the game folder, the `compatdata/` prefix and the game's `shadercache/` together with the shortcut, and only from `<folder>/<slug>/game` that is neither a link nor the home folder. The uninstaller deletes the folder it sits in, and a copy carried elsewhere along with its `.plumber` would take that folder with it; anything else stops the uninstall before Steam is touched (exit code 5). The `<slug>` folder goes too, but only when nothing else is in it. **Found on a Deck:** after every purge the shader cache and an empty `<slug>` were left behind and had to be deleted by hand
 
 **Uninstall looks the entry up by `Exe`, not by appid.** That came out on the very first run: a shortcut added through the Steam UI has a random appid (2.3), and the one computed by our formula does not match it. By `Exe` the entry is found no matter who created it; the real appid is then taken from it, and the `CompatToolMapping`, the artwork and the prefix are removed by that. An entry with no appid at all, rewritten by some other tool, keeps the computed one: its 0 would match every entry without an appid, and `CompatToolMapping "0"` is the Steam Play default for all other games.
 
@@ -809,6 +810,24 @@ Drop a finished `.run` back in → read `recipe.json` from the first 72 KB → r
 
 `[?]` A separate button in the header, or the same drop zone as for the archive?
 
+### 7.8 Controller layout
+
+Feedback from a player: of the games added, only Myst worked with the controller out of the box. Syberia wanted a real mouse, and in Deus Ex the controller could turn, switch weapons and fire, but not walk. A game made for keyboard and mouse needs a layout that maps the controller to them, and Steam keeps one per game.
+
+**Where Steam keeps the choice.** In `steamapps/common/Steam Controller Configs/<account>/config/configset_controller_<type>.vdf`, a file per controller type (`neptune` for the built-in one, `xboxone`, `ps5`, `triton` and so on), whose block `controller_config` maps a game to its layout. A non-Steam game is keyed by its name in lower case, without `/\?%*:|"<>.`, and a layout from the Workshop is `"workshop" "<ID>"`. That is how Steam ROM Manager sets layouts for the shortcuts it makes (its `src/lib/controller-manager.ts`). `shortcuts.vdf` has no place for it (8).
+
+**Community layouts of non-Steam games go by name too.** Steam shows a shortcut the layouts others published for a shortcut of exactly the same name, and SteamInputDB lists them next to those of the Steam version: **verified**, a search for "Deus Ex" found layouts for "Deus Ex: Game of the Year Edition" and for shortcuts named `deus ex` and `deus ex™ goty edition`. The keys of a game are the same in both, so either kind fits.
+
+**The site cannot ask anyone.** **Verified:** Steam's Web API answers without CORS headers, its search of the Workshop wants a key, and the API of SteamInputDB wants a key and lets in only its own site. The section starts with a box, off by default: a game that supports a controller needs nothing, and the field for the link shows only once the box is ticked. Then the person finds a layout on SteamInputDB, through a link next to the field that searches for the title, and pastes its link. The site takes the ID out of the link and puts it into `recipe.json` as `controller_layout`. A layout's page on SteamInputDB is `steaminputdb.com/config/<ID>`, and a bare ID is taken too. The Workshop's own page of a layout is no source of links: **verified**, Steam Community answers "The item is either marked as hidden or you do not have permission to view it" to a browser. Anything else is marked in the field. With the box ticked the build waits for a layout; unticked, whatever the field holds stays out of the recipe. Another archive unticks the box and empties the field: the layout was picked for the last game.
+
+**The installer asks Steam one thing: which controller the layout is made for.** `ISteamRemoteStorage/GetPublishedFileDetails` needs no key, and Python is not a browser. The type comes as a tag: **verified**, `controller_neptune` on two layouts for Deus Ex. It is asked while Steam is still up; with Steam down, the installer backs the controller's file up and writes `"workshop" "<ID>"` for the game into it, next to the other edits. Without a connection the game installs all the same, and the last window says the layout was not set: `install.py` writes such things as `NOTE:` lines, and `setup.sh` adds them to the window.
+
+**After the restart** the installer checks that the entry is still there and says so in the log, and in the window if it is gone, but does not retry over it: a layout is no reason to restart Steam once more. The uninstaller takes the entry out of every controller's file where it still points at the layout the install set, and backs each such file up first, as the install does.
+
+**Steam fetches the layout by itself and applies it.** **Verified** on a Deck with SteamOS 3.8.28, Deus Ex Revision and the layout `3037080160`: the entry was written while Steam was down, and 16 s after Steam came back the layout was on disk with nothing more from the installer, in `steamapps/workshop/content/241100/<ID>/` and as `userdata/<account>/ugc/referenced/<handle>/<ID>_controller_config.vdf`, 26 KB of a whole layout. Steam did not rewrite the controller's file, and the game played with the layout on its first launch. So the installer downloads nothing, and the `file_url` the details carry stays unused.
+
+`[?]` Still open: whether Steam Input has to be turned on for the game with a controller other than the built-in one (`UseSteamControllerConfig` in `localconfig.vdf`, which Steam ROM Manager can set). The check above was made with the built-in one.
+
 ---
 
 ## 8. Limitations
@@ -825,7 +844,7 @@ Drop a finished `.run` back in → read `recipe.json` from the first 72 KB → r
 
   `-e %f` runs the file **directly**, so without the bit `execve` refuses. Worse, the menu item **is shown** anyway: `x-shellscript` is a subtype of `x-executable`, so KDE offers an action that is bound to fail. And the message is misleading: konsole prints `Could not find '<path>'`, although the file is there and simply cannot be executed. The person goes looking for a missing file instead of ticking the box
 - **A double click** without the bit hands the file to a text editor, which does not open four gigabytes at all. So there is not a single built-in hint: the instructions have to come from the application
-- **The controller layout** cannot be baked into `shortcuts.vdf`. The most we can do is put a link to a community layout into the instructions
+- **The controller layout** cannot be baked into `shortcuts.vdf`, but it has a file of its own, and the installer writes a layout from the Workshop there (7.8)
 - **A Steam download in progress will be interrupted** by the install (5.1)
 - **SteamOS has no `/usr/bin/time`.** `bash` has only the `time` keyword, and POSIX `sh` not even that. Durations are measured with `date +%s`. Verified: a `/usr/bin/time` wrapper around the unpacking silently ran nothing and still returned exit code zero
 - **There is no `bc` either.** Fractional arithmetic goes through `awk`, integer arithmetic through `$(( ))`. Verified on the spot

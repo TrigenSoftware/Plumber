@@ -6,6 +6,7 @@ import {
   batch,
   resolved
 } from '@nano_kit/store'
+import { getLayoutId } from '~/services/controller'
 import { rankExes } from '~/services/exe'
 import {
   type PrefixArch,
@@ -69,6 +70,21 @@ export function Game$() {
   /** Ticked by default: the detection is right far more often than not (7.3.1). */
   const $overrideWrappers = signal(true)
   /**
+   * Whether the controller is to be mapped to keyboard and mouse with a layout
+   * (7.8). Off by default: a game that supports a controller needs nothing.
+   */
+  const $mapController = signal(false)
+  /** The link to a layout, as pasted */
+  const $layoutLink = signal('')
+  /** The Workshop ID in the link, whether mapping is on or not */
+  const $linkedLayout = computed(() => getLayoutId($layoutLink()))
+  /** What goes into the recipe: the layout while mapping is on, null otherwise */
+  const $layoutId = computed(() => ($mapController() ? $linkedLayout() : null))
+  /** Something pasted that is not a link to a layout */
+  const $layoutInvalid = computed(() => Boolean($layoutLink().trim()) && !$linkedLayout())
+  /** Mapping asked for and no layout to map with yet: the build waits for one */
+  const $layoutMissing = computed(() => $mapController() && !$linkedLayout())
+  /**
    * Re-ranked as the title changes: the title bonus depends on it (7.2.1).
    * A path the central directory lists twice is one exe on disk, so it is
    * offered once, at its better rank.
@@ -123,19 +139,28 @@ export function Game$() {
   let filledFrom: File | null = null
   /**
    * A new archive brings the title and the exe it suggests; without one the
-   * exe goes with it, while the rest of the form is kept as it was.
+   * exe goes with it, while the rest of the form is kept as it was. The
+   * mapping goes once the archive it was set up for does, and not before: the
+   * first fill may come as late as the box is ticked, when the box is the
+   * first thing to show the title.
    */
   const fill = () => {
     const archive = $archive()
     const zip = $zip()
+    const previous = filledFrom
 
-    if (archive === filledFrom) {
+    if (archive === previous) {
       return
     }
 
     filledFrom = archive
 
     batch(() => {
+      if (previous) {
+        $mapController(false)
+        $layoutLink('')
+      }
+
       if (archive && zip) {
         const name = guessTitle(archive.name, zip)
 
@@ -163,6 +188,11 @@ export function Game$() {
     $prefixArch,
     $userData,
     $overrideWrappers,
+    $mapController,
+    $layoutLink,
+    $layoutId,
+    $layoutInvalid,
+    $layoutMissing,
     $candidates,
     $selected,
     $wrappers,

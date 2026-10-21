@@ -24,6 +24,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
 import zipfile
 import zlib
 
@@ -229,6 +231,18 @@ def test_text_keyvalues():
     ok(ctm is not None, 'found the block through mixed case')
     eq(ctm['3786021133']['name'], 'GE-Proton9-11', 'mapping name')
     eq(vdf.find_path(parsed, 'nope'), None, 'missing key gives None')
+
+
+@case
+def test_text_keyvalues_written():
+    """vdf: text KeyValues come out the way Steam writes them and read back the same"""
+    data = {'controller_config': {'deus ex': {'workshop': '3036980641'}, 'x\\y': {}}}
+    text = vdf.text_dumps(data)
+
+    eq(text.splitlines()[:6], [
+        '"controller_config"', '{', '\t"deus ex"', '\t{', '\t\t"workshop"\t\t"3036980641"', '\t}'],
+        'the layout')
+    eq(vdf.text_loads(text), data, 'read back, the backslashes as they were')
 
 
 # ------------------------------------------------------------ config surgery
@@ -647,6 +661,77 @@ def test_artwork_names():
         ]), 'file names')
 
         eq(si.remove_art(uid, appid, log=quiet), 5, 'all five removed')
+
+
+@case
+def test_layout_key():
+    """layout: a non-Steam game is keyed by its name in lower case, without what a file name cannot hold"""
+    eq(si.layout_key('Deus Ex: Game of the Year Edition'), 'deus ex game of the year edition', 'colon')
+    eq(si.layout_key('S.T.A.L.K.E.R. Clear Sky'), 'stalker clear sky', 'dots')
+
+
+def layout_record(result=1, app='241100', tags=('feature_mouse', 'controller_neptune')):
+    """The Workshop's record of a layout, as GetPublishedFileDetails gives it."""
+    return {
+        'publishedfileid': '3036980641', 'result': result, 'consumer_app_id': app,
+        'tags': [{'tag': tag} for tag in tags]}
+
+
+@case
+def test_layout_controller_from_its_tags():
+    """layout: the controller comes from the Workshop tags, and anything else is refused with a reason"""
+    eq(si.layout_controller(layout_record()), 'neptune', 'the tag')
+    for record, why in (
+            (layout_record(result=9), 'no public layout'),
+            (layout_record(app='440'), 'not a controller layout'),
+            (layout_record(tags=('feature_mouse',)), 'does not say which controller')):
+        try:
+            si.layout_controller(record)
+        except si.LayoutError as exc:
+            ok(why in str(exc), 'the reason: %s' % exc)
+        else:
+            raise AssertionError('took %r' % record)
+
+
+@case
+def test_layout_details_without_steam():
+    """layout: a Steam that cannot be reached is a reason for the window, not a traceback"""
+    def offline(*_args, **_kwargs):
+        raise urllib.error.URLError('Name or service not known')
+
+    saved = urllib.request.urlopen
+    urllib.request.urlopen = offline
+    try:
+        si.layout_details('3036980641')
+    except si.LayoutError as exc:
+        eq(str(exc), 'Steam could not be asked which controller it is made for', 'the reason')
+    else:
+        raise AssertionError('no error without Steam')
+    finally:
+        urllib.request.urlopen = saved
+
+
+@case
+def test_layout_set_and_taken_out():
+    """layout: set next to other games' in the controller's file, and taken out alone"""
+    with tempfile.TemporaryDirectory() as tmp:
+        fake_steam(tmp)
+        si.set_layout('12345678', 'Hot Pursuit 2', 'neptune', '111', log=quiet)
+        si.set_layout('12345678', 'Deus Ex: GOTY', 'neptune', '3036980641', log=quiet)
+        path = si.configset_path('12345678', 'neptune')
+        games = vdf.text_load(path)['controller_config']
+
+        eq(
+            games,
+            {'hot pursuit 2': {'workshop': '111'}, 'deus ex goty': {'workshop': '3036980641'}},
+            'both games in the file')
+        eq(si.get_layout('12345678', 'Deus Ex: GOTY', 'neptune'), '3036980641', 'read back')
+        eq(si.unset_layout('12345678', 'Deus Ex: GOTY', '222', log=quiet), 0, 'a layout picked since stays')
+        eq(si.unset_layout('12345678', 'Deus Ex: GOTY', '3036980641', log=quiet), 1, 'ours goes')
+        eq(
+            vdf.text_load(path)['controller_config'],
+            {'hot pursuit 2': {'workshop': '111'}},
+            'the other game kept')
 
 
 @case
@@ -1163,13 +1248,14 @@ class FakeSteam:
 
 
 def run_install(tmp, proton='proton_9', config=CONFIG_WITH_CTM, broken=None,
-                archive=None, steam=None, entries=None, extra=()):
+                archive=None, steam=None, entries=None, extra=(), recipe=None):
     """install.main() on a fake Steam in `tmp`. -> (exit code, log, FakeSteam).
 
     The game comes out of `archive`, by default a Zip64 .run holding speed.exe.
     `broken` names a function of steam_install to replace with one that raises.
     `steam` is the FakeSteam to run against, `entries` the shortcuts there
-    before the install, and `extra` more (module, name, value) to patch in.
+    before the install, `extra` more (module, name, value) to patch in, and
+    `recipe` more fields for the recipe.
     """
     root = fake_steam(tmp)
     with open(os.path.join(root, 'config', 'config.vdf'), 'w') as f:
@@ -1184,9 +1270,10 @@ def run_install(tmp, proton='proton_9', config=CONFIG_WITH_CTM, broken=None,
     for name in ('portrait.png', 'icon.png'):
         with open(os.path.join(art, name), 'wb') as f:
             f.write(b'\x89PNG')
+    fields = dict({'name': 'NFS', 'slug': 'nfs', 'exe': 'speed.exe'}, **(recipe or {}))
     recipe = os.path.join(tmp, 'recipe.json')
     with open(recipe, 'w') as f:
-        json.dump({'name': 'NFS', 'slug': 'nfs', 'exe': 'speed.exe'}, f)
+        json.dump(fields, f)
 
     def explode(*_args, **_kwargs):
         raise RuntimeError('%s blew up' % broken)
@@ -1214,17 +1301,19 @@ def run_install(tmp, proton='proton_9', config=CONFIG_WITH_CTM, broken=None,
     return rc, out.getvalue(), fake
 
 
-def run_uninstall(tmp, game, purge=False, entries=None, config=CONFIG_WITH_CTM):
+def run_uninstall(tmp, game, purge=False, entries=None, config=CONFIG_WITH_CTM, recipe=None):
     """install.main() --uninstall on a fake Steam in `tmp`, for the game NFS
-    (slug nfs) in `game`. -> (exit code, log, FakeSteam)"""
+    (slug nfs) in `game`, with `recipe` more fields for its recipe.
+    -> (exit code, log, FakeSteam)"""
     root = fake_steam(tmp)
     with open(os.path.join(root, 'config', 'config.vdf'), 'w') as f:
         f.write(config)
     if entries is not None:
         vdf.write_shortcuts(os.path.join(si.user_config('12345678'), 'shortcuts.vdf'), entries)
+    fields = dict({'name': 'NFS', 'slug': 'nfs', 'exe': 'speed.exe'}, **(recipe or {}))
     recipe = os.path.join(tmp, 'recipe.json')
     with open(recipe, 'w') as f:
-        json.dump({'name': 'NFS', 'slug': 'nfs', 'exe': 'speed.exe'}, f)
+        json.dump(fields, f)
 
     fake = FakeSteam()
     patches = [
@@ -1417,6 +1506,39 @@ def test_closed_window_gets_no_other_attempt():
 
 
 @case
+def test_install_sets_the_layout():
+    """install: the layout goes into the file of the controller it is made for"""
+    with tempfile.TemporaryDirectory() as tmp:
+        asked = []
+        rc, out, _ = run_install(tmp, recipe={'controller_layout': '3036980641'}, extra=[
+            (si, 'layout_details', lambda file_id: asked.append(file_id) or layout_record())])
+
+        eq(rc, 0, 'exit code\n%s' % out)
+        eq(asked, ['3036980641'], 'Steam asked once, about this layout')
+        eq(si.get_layout('12345678', 'NFS', 'neptune'), '3036980641', 'the layout for the game')
+        ok('NOTE:' not in out, 'nothing to say about it:\n%s' % out)
+
+
+@case
+def test_install_without_steam_to_ask():
+    """install: with Steam out of reach the game goes in, and the window says the layout was not set"""
+    with tempfile.TemporaryDirectory() as tmp:
+        def offline(_file_id):
+            raise si.LayoutError('Steam could not be asked which controller it is made for')
+
+        rc, out, fake = run_install(tmp, recipe={'controller_layout': '3036980641'}, extra=[
+            (si, 'layout_details', offline)])
+
+        eq(rc, 0, 'exit code\n%s' % out)
+        ok(
+            'NOTE: The controller layout was not set: Steam could not be asked which controller '
+            'it is made for. Pick one in the game\'s controller settings.' in out,
+            'the line for the window:\n%s' % out)
+        eq(fake.calls, ['shutdown', 'start'], 'the rest as usual')
+        ok(not os.path.isdir(si.controller_configs('12345678')), 'no layout file touched')
+
+
+@case
 def test_crash_brings_steam_back():
     """install: an unexpected error is logged and Steam is started again"""
     with tempfile.TemporaryDirectory() as tmp:
@@ -1496,6 +1618,29 @@ def test_uninstall_without_an_appid_takes_nothing_else():
 
 
 @case
+def test_uninstall_takes_the_layout_out():
+    """uninstall: the layout the install set goes, another game's stays, the file backed up"""
+    with tempfile.TemporaryDirectory() as tmp:
+        fake_steam(tmp)
+        si.set_layout('12345678', 'NFS', 'neptune', '3036980641', log=quiet)
+        si.set_layout('12345678', 'Hot Pursuit 2', 'neptune', '111', log=quiet)
+        game = os.path.join(tmp, 'Games', 'nfs', 'game')
+        os.makedirs(game)
+
+        rc, out, _ = run_uninstall(tmp, game, recipe={'controller_layout': '3036980641'})
+
+        eq(rc, 0, 'exit code\n%s' % out)
+        eq(si.get_layout('12345678', 'NFS', 'neptune'), None, 'ours gone')
+        eq(si.get_layout('12345678', 'Hot Pursuit 2', 'neptune'), '111', 'the other kept')
+        folder = si.controller_configs('12345678')
+        backups = [f for f in os.listdir(folder) if f.startswith('configset_controller_neptune.vdf.bak-')]
+        eq(len(backups), 1, 'backups of the file\n%s' % out)
+        eq(
+            vdf.text_load(os.path.join(folder, backups[0]))['controller_config'].get('nfs'),
+            {'workshop': '3036980641'}, 'the backup, taken before ours went')
+
+
+@case
 def test_purge_deletes_only_the_game_folder():
     """uninstall: everything goes from <folder>/<slug>/game only, never elsewhere"""
     # The uninstaller deletes the folder it sits in: a copy carried elsewhere
@@ -1527,10 +1672,33 @@ def test_purge_deletes_only_the_game_folder():
         os.makedirs(os.path.join(game, '.plumber'))
         with open(os.path.join(game, 'speed.exe'), 'wb') as f:
             f.write(b'MZ')
+        with open(os.path.join(tmp, 'Games', 'nfs', 'mine.txt'), 'w') as f:
+            f.write('mine')
         rc, out, _ = run_uninstall(tmp, game, purge=True)
         eq(rc, 0, 'exit code\n%s' % out)
         ok(not os.path.exists(game), 'the game folder is gone')
-        ok(os.path.isdir(os.path.join(tmp, 'Games', 'nfs')), 'and nothing above it')
+        eq(read(tmp, 'Games', 'nfs', 'mine.txt'), b'mine', 'and nothing above it')
+
+
+@case
+def test_purge_leaves_nothing_of_the_game():
+    """uninstall: the shader cache and the emptied <slug> folder go with the game"""
+    # Both stayed behind after every purge on a Deck and were deleted by hand
+    with tempfile.TemporaryDirectory() as tmp:
+        games = os.path.join(tmp, 'Games')
+        game = os.path.join(games, 'nfs', 'game')
+        os.makedirs(os.path.join(game, '.plumber'))
+        appid = si.make_appid('"%s"' % os.path.join(game, 'speed.exe'), 'NFS')
+        caches = os.path.join(tmp, 'steam', 'steamapps', 'shadercache')
+        for app in (str(appid), '2229870'):
+            os.makedirs(os.path.join(caches, app, 'fozpipelinesv6'))
+
+        rc, out, _ = run_uninstall(tmp, game, purge=True)
+
+        eq(rc, 0, 'exit code\n%s' % out)
+        eq(os.listdir(caches), ['2229870'], "the shader caches left, only the game's gone")
+        ok(not os.path.exists(os.path.join(games, 'nfs')), 'the emptied <slug> folder is gone')
+        ok(os.path.isdir(games), 'the folder above it is kept')
 
 
 def sh(script, *args):

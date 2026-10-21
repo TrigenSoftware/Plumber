@@ -14,6 +14,7 @@ import {
 import { ArchivePicker } from '~/blocks/ArchivePicker'
 import { ArtworkGrid } from '~/blocks/ArtworkGrid'
 import { BuildPanel } from '~/blocks/BuildPanel'
+import { ControllerLayout } from '~/blocks/ControllerLayout'
 import { GameForm } from '~/blocks/GameForm'
 import { HowItWorks } from '~/blocks/HowItWorks'
 import { PreflightList } from '~/blocks/PreflightList'
@@ -153,6 +154,13 @@ export const Home = component$(({
               + 'section. Every slot is optional.'
           })(
             ArtworkGrid()
+          ),
+          Section({
+            title: 'Controller',
+            note: 'A game made for keyboard and mouse needs the controller mapped to them, with a '
+              + 'community layout from the Steam Workshop.'
+          })(
+            ControllerLayout()
           ),
           Section({
             title: 'Before building',

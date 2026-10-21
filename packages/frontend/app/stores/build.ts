@@ -47,7 +47,9 @@ export function Build$() {
     $prefixArch,
     $selected,
     $overrides,
-    $userDataList
+    $userDataList,
+    $layoutId,
+    $layoutMissing
   } = inject(Game$)
   const {
     $items,
@@ -70,6 +72,7 @@ export function Build$() {
     && $name().trim()
     && !$building()
     && !$problems().length
+    && !$layoutMissing()
   ))
   // A build of an archive that is no longer there writes nothing back
   let ticket = 0
@@ -96,7 +99,8 @@ export function Build$() {
         exe: candidate.path,
         prefixArch: $prefixArch(),
         userData: $userDataList(),
-        dllOverrides: $overrides()
+        dllOverrides: $overrides(),
+        controllerLayout: $layoutId()
       })
       const fileName = `${slugify(recipe.name)}.run`
 

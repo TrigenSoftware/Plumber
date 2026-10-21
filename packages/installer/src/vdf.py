@@ -134,6 +134,21 @@ def text_load(path):
         return text_loads(f.read())
 
 
+def text_dumps(node, depth=0):
+    """KeyValues from nested dicts, laid out the way Steam writes them: a tab
+    a level, two between a key and its value. Strings go out as text_loads
+    left them, every backslash included."""
+    tabs = '\t' * depth
+    out = []
+    for key, value in node.items():
+        if isinstance(value, dict):
+            out.append('%s"%s"\n%s{\n%s%s}\n' % (
+                tabs, key, tabs, text_dumps(value, depth + 1), tabs))
+        else:
+            out.append('%s"%s"\t\t"%s"\n' % (tabs, key, value))
+    return ''.join(out)
+
+
 def find_path(node, *keys):
     """Case-insensitive descent through nested keys. -> value or None."""
     cur = node

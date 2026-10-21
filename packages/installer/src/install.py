@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The Python side of the install in one pass: unpacks the game, shuts the
-client down, writes both VDFs, lays out the artwork, brings the client back
-and verifies that the edits survived.
+client down, writes both VDFs, lays out the artwork, points the game at its
+controller layout, brings the client back and verifies that the edits survived.
 
     install.py --recipe R --game-dir D --archive Z --proton NAME [--art A] [--dry-run]
     install.py --recipe R --game-dir D --uninstall
@@ -41,6 +41,8 @@ NOT_ITS_FOLDER = 5
 CANCELLED = 6
 PROGRESS_REF = None
 QDBUS = shutil.which('qdbus6') or shutil.which('qdbus')
+# What the last window is to say on top of the result, said once each
+NOTES = []
 # True while the client is down because of us. Every way out of main(), an
 # exception included, brings it back: left down, Steam looks to the player as
 # if the installer broke it.
@@ -49,6 +51,14 @@ STEAM_STOPPED = False
 
 def log(msg=''):
     print(msg, flush=True)
+
+
+def note(text):
+    """A line for the last window: something that did not go as planned
+    without making the game any less installed. setup.sh shows every one."""
+    if text not in NOTES:
+        NOTES.append(text)
+        log('NOTE: %s' % text)
 
 
 def progress(pct=None, text=None):
@@ -179,7 +189,7 @@ def main(argv=None):
     ap.add_argument('--steam-user', default='',
                     help='userdata folder to install into, when there is a choice')
     ap.add_argument('--purge', action='store_true',
-                    help='on uninstall, also remove the game folder and the prefix')
+                    help='on uninstall, also remove the game folder, the prefix and the shader cache')
     ap.add_argument('--progress-ref', default='',
                     help='DBus reference to the progress bar opened by the shell')
     a, _ = ap.parse_known_args(argv)
@@ -205,6 +215,7 @@ def main(argv=None):
         return 0
     global PROGRESS_REF
     PROGRESS_REF = a.progress_ref or None
+    NOTES.clear()
 
     log('Plumber %s log' % ('uninstall' if a.uninstall else 'install'))
     log('%s, %s\n' % (time.strftime('%Y-%m-%d %H:%M:%S'), system_line()))
@@ -310,6 +321,7 @@ def run(a):
                 break
 
     entry = si.build_entry(appid, name, exe, icon=icon, launch_options=lopts)
+    layout = recipe.get('controller_layout')
 
     if a.dry_run:
         log('\n--- dry run, nothing is modified ---')
@@ -318,6 +330,7 @@ def run(a):
             log('  %-20s %r' % (k, v))
         log('CompatToolMapping[%d] = %s' % (appid, a.proton or '(not set)'))
         log('artwork from: %s' % (a.art or '(none)'))
+        log('controller layout: %s' % (layout or '(none)'))
         log('files: %s' % sc_path)
         log('       %s' % cfg_path)
         return 0
@@ -333,6 +346,21 @@ def run(a):
         # client runs the exe as a Linux program, and it does not start.
         log('proton: none chosen, it has to be picked in the game\'s Properties')
         problems.append('Proton')
+
+    # Asked while the client is still up: the only request to Steam the
+    # install makes, and the client should not be kept down waiting on it
+    controller = None
+    if layout:
+        progress(81, 'Asking Steam about the controller layout...')
+        try:
+            controller = si.layout_controller(si.layout_details(layout))
+            log('controller layout: %s, made for controller_%s' % (layout, controller))
+        except si.LayoutError as exc:
+            log('controller layout: %s, not set: %s%s' % (
+                layout, exc, ' (%s)' % exc.__cause__ if exc.__cause__ else ''))
+            note(
+                'The controller layout was not set: %s. Pick one in the game\'s '
+                'controller settings.' % exc)
 
     # The last point where a closed window can stop the install with nothing
     # of the person's changed: past it Steam is down and comes back with the game
@@ -350,6 +378,8 @@ def run(a):
     progress(85, 'Backing up Steam settings...')
     sc_backup = si.backup(sc_path, log=log)
     si.backup(cfg_path, log=log)
+    if controller:
+        si.backup(si.configset_path(uid, controller), log=log)
 
     for attempt in (1, 2, 3):
         # Another attempt restarts Steam once more, and with the window closed
@@ -382,6 +412,14 @@ def run(a):
             progress(91, 'Installing artwork...')
             if not step('artwork', si.install_art, uid, appid, a.art, log=log):
                 failed.append('artwork')
+        layout_set = False
+        if controller:
+            progress(92, 'Setting the controller layout...')
+            layout_set = step('controller layout', si.set_layout, uid, name, controller, layout, log=log)
+            if not layout_set:
+                note(
+                    'The controller layout was not set: its file could not be written. '
+                    'Pick one in the game\'s controller settings.')
 
         mtime = os.stat(sc_path).st_mtime
         progress(93, 'Starting Steam again...')
@@ -407,6 +445,15 @@ def run(a):
             log('  Steam never rewrote the file: checking it as it stands')
 
         if si.verify(uid, appid, proton, expect_count=expect, log=log):
+            # Looked at, not retried for: a layout is no reason to restart Steam
+            if layout_set:
+                if si.get_layout(uid, name, controller) == layout:
+                    log('  controller layout: kept')
+                else:
+                    log('  CONTROLLER LAYOUT GONE')
+                    note(
+                        'Steam did not keep the controller layout. Pick one in the '
+                        'game\'s controller settings.')
             if not step('uninstaller', install_uninstaller,
                         os.path.abspath(a.game_dir), a.recipe, log=log):
                 failed.append('uninstaller')
@@ -567,8 +614,10 @@ def do_uninstall(uid, appid, exe_quoted, a, recipe):
                 'appid=%d' % (idx, found.get('AppName'), appid))
     else:
         log('  no shortcut with this Exe, using computed appid=%d' % appid)
+    layout = recipe.get('controller_layout')
     if a.dry_run:
-        log('dry run: would remove shortcut %d, its CompatToolMapping and artwork' % appid)
+        log('dry run: would remove shortcut %d, its CompatToolMapping, artwork%s' % (
+            appid, ' and controller layout' if layout else ''))
         return 0
     if not stop_steam():
         log('Steam did not shut down - aborting')
@@ -579,9 +628,14 @@ def do_uninstall(uid, appid, exe_quoted, a, recipe):
     si.remove_shortcut(uid, appid=appid, exe_quoted=exe_quoted, log=log)
     si.unset_proton(appid, log=log)
     si.remove_art(uid, appid, log=log)
+    if layout:
+        si.unset_layout(uid, recipe['name'], layout, log=log)
 
     if a.purge:
         pfx = os.path.join(si.STEAM_ROOT, 'steamapps', 'compatdata', str(appid))
+        # Steam keeps the shaders it built for the game under its appid, and
+        # nothing removes them once the shortcut is gone
+        cache = os.path.join(si.STEAM_ROOT, 'steamapps', 'shadercache', str(appid))
         # portable games keep their saves next to the exe - warn about it
         saves = [
             os.path.join(r, f) for r, _, fs in os.walk(gd)
@@ -592,10 +646,17 @@ def do_uninstall(uid, appid, exe_quoted, a, recipe):
         for extra in (os.path.join(gd, '.plumber'),):
             if os.path.isdir(extra):
                 shutil.rmtree(extra, ignore_errors=True)
-        for path, what in ((gd, 'game folder'), (pfx, 'prefix')):
+        for path, what in ((gd, 'game folder'), (pfx, 'prefix'), (cache, 'shader cache')):
             if os.path.isdir(path):
                 shutil.rmtree(path, ignore_errors=True)
                 log('  removed: %s (%s)' % (what, path))
+        # setup.sh made <slug> for the game folder alone. Emptied, it goes too;
+        # anything put there since keeps it
+        try:
+            os.rmdir(os.path.dirname(gd))
+            log('  removed: empty folder (%s)' % os.path.dirname(gd))
+        except OSError:
+            pass
 
     start_steam()
     if not a.purge:

@@ -79,6 +79,7 @@ export function buildRecipe(input: RecipeInput): Recipe {
     prefix_arch: input.prefixArch,
     user_data: input.userData,
     dll_overrides: input.dllOverrides,
+    controller_layout: input.controllerLayout,
     generator: GENERATOR
   }
 }
