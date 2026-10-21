@@ -157,6 +157,7 @@ describe('pages', () => {
         'How it works',
         'The game',
         'Artwork',
+        'Controller',
         'Before building'
       ])
       expect(buildButton()).not.toBeNull()
@@ -169,6 +170,9 @@ describe('pages', () => {
         name: 'Title in the library'
       }))).toBe('The game')
       expect(headingOver(screen.getByLabelText('portrait, 600×900'))).toBe('Artwork')
+      expect(headingOver(screen.getByRole('checkbox', {
+        name: /^Map the controller to keyboard and mouse/
+      }))).toBe('Controller')
       expect(headingOver(screen.getByText(/^5 of 5 artwork slots are empty\./))).toBe('Before building')
     })
 

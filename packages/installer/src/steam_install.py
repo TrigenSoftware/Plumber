@@ -1,14 +1,18 @@
-"""The Steam side of the install: user, shortcut, Proton, artwork.
+"""The Steam side of the install: user, shortcut, Proton, artwork, controller
+layout.
 
 Everything that needs an understanding of Steam's formats. The shell wrapper
 (setup.sh) handles the questions and the extraction and calls into here.
 """
 
+import json
 import os
 import re
 import shutil
 import sys
 import time
+import urllib.parse
+import urllib.request
 import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -472,6 +476,128 @@ def remove_art(uid, appid, log=print):
     if n:
         log('  artwork files removed: %d' % n)
     return n
+
+
+# -------------------------------------------------------- controller layout
+# A layout from the Workshop, for a game made for keyboard and mouse (7.8).
+# Which layout a game uses is kept per account, in a file per controller type;
+# the client fetches the layout itself once a game points at its Workshop ID.
+
+LAYOUT_DETAILS_URL = (
+    'https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/')
+# The app the Workshop keeps controller layouts under
+CONTROLLER_CONFIGS_APP = '241100'
+
+
+class LayoutError(RuntimeError):
+    """A layout that cannot be set, with the reason in words for the person."""
+
+
+def controller_configs(uid):
+    return os.path.join(
+        STEAM_ROOT, 'steamapps', 'common', 'Steam Controller Configs', uid, 'config')
+
+
+def configset_path(uid, controller):
+    """The file that says which layout each game uses with one controller."""
+    return os.path.join(
+        controller_configs(uid), 'configset_controller_%s.vdf' % controller)
+
+
+def layout_key(name):
+    """What the client files a non-Steam game's layout under: its name in lower
+    case, without what a file name cannot hold. Steam ROM Manager keys the
+    shortcuts it makes the same way."""
+    return re.sub(r'[/\\?%*:|"<>.]', '', name.lower())
+
+
+def layout_details(file_id, timeout=15):
+    """The Workshop's record of a layout. -> dict
+
+    The site cannot ask for it, since Steam's answer carries no CORS headers,
+    but this is not a browser, and the request needs no key."""
+    body = urllib.parse.urlencode(
+        {'itemcount': 1, 'publishedfileids[0]': file_id}).encode()
+    try:
+        with urllib.request.urlopen(LAYOUT_DETAILS_URL, data=body, timeout=timeout) as reply:
+            answer = json.load(reply)
+    except (OSError, ValueError) as exc:
+        raise LayoutError(
+            'Steam could not be asked which controller it is made for') from exc
+    try:
+        return answer['response']['publishedfiledetails'][0]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise LayoutError('Steam answered about something else') from exc
+
+
+def layout_controller(details):
+    """The controller a layout is made for, from its Workshop tags.
+    -> 'neptune', 'xboxone', 'ps5', ..."""
+    if str(details.get('result')) != '1':
+        raise LayoutError('the Workshop has no public layout with this ID')
+    if str(details.get('consumer_app_id')) != CONTROLLER_CONFIGS_APP:
+        raise LayoutError('this Workshop item is not a controller layout')
+    for tag in details.get('tags') or []:
+        name = tag.get('tag', '') if isinstance(tag, dict) else ''
+        if name.startswith('controller_'):
+            return name[len('controller_'):]
+    raise LayoutError('the layout does not say which controller it is made for')
+
+
+def _games(data):
+    """The block of games in a configset file, made if it is not there."""
+    hit = next((k for k in data if k.lower() == 'controller_config'), None)
+    if hit is None or not isinstance(data[hit], dict):
+        hit = hit or 'controller_config'
+        data[hit] = {}
+    return data[hit]
+
+
+def set_layout(uid, name, controller, file_id, log=print):
+    """Points the game at a Workshop layout for one controller. Steam must be
+    down; it fetches the layout itself."""
+    path = configset_path(uid, controller)
+    data = vdf.text_load(path) if os.path.isfile(path) else {}
+    _games(data)[layout_key(name)] = {'workshop': file_id}
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    vdf.replace_file(path, vdf.text_dumps(data).encode('utf-8'))
+    log('  controller layout: %s for controller_%s' % (file_id, controller))
+
+
+def get_layout(uid, name, controller):
+    """-> the Workshop ID the game's layout for the controller points at, or None"""
+    path = configset_path(uid, controller)
+    if not os.path.isfile(path):
+        return None
+    entry = vdf.find_path(vdf.text_load(path), 'controller_config', layout_key(name))
+    return entry.get('workshop') if isinstance(entry, dict) else None
+
+
+def unset_layout(uid, name, file_id, log=print):
+    """Takes the game out of every controller's file where it still points at
+    the layout the install set, and leaves a layout picked since alone. A file
+    is backed up before it is rewritten, as the install does it: which files
+    those are is known only here.
+    -> how many files it was taken out of"""
+    folder = controller_configs(uid)
+    if not os.path.isdir(folder):
+        return 0
+    key = layout_key(name)
+    taken = 0
+    for f in sorted(os.listdir(folder)):
+        if not (f.startswith('configset_controller_') and f.endswith('.vdf')):
+            continue
+        path = os.path.join(folder, f)
+        data = vdf.text_load(path)
+        games = vdf.find_path(data, 'controller_config')
+        entry = games.get(key) if isinstance(games, dict) else None
+        if isinstance(entry, dict) and entry.get('workshop') == file_id:
+            del games[key]
+            backup(path, log=log)
+            vdf.replace_file(path, vdf.text_dumps(data).encode('utf-8'))
+            log('  controller layout: removed from %s' % f)
+            taken += 1
+    return taken
 
 
 # ---------------------------------------------------------------- verifying

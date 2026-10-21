@@ -7,7 +7,7 @@ import {
   ART_SLOTS,
   ART_TYPES,
   artFileName,
-  steamGridDbUrl
+  getSteamGridDbUrl
 } from './artwork.ts'
 
 const file = (type: string, name = 'art') => new File([new Uint8Array(1)], name, {
@@ -34,14 +34,14 @@ describe('services', () => {
       })
     })
 
-    describe('steamGridDbUrl', () => {
+    describe('getSteamGridDbUrl', () => {
       it('should open the section filtered by size when it is given', () => {
-        expect(steamGridDbUrl('grids', 'Need for Speed', '920x430'))
+        expect(getSteamGridDbUrl('grids', 'Need for Speed', '920x430'))
           .toBe('https://www.steamgriddb.com/search/grids/920x430/all/all?term=Need%20for%20Speed')
       })
 
       it('should point at the section with the title as the search term', () => {
-        expect(steamGridDbUrl('heroes', 'Need for Speed'))
+        expect(getSteamGridDbUrl('heroes', 'Need for Speed'))
           .toBe('https://www.steamgriddb.com/search/heroes?term=Need%20for%20Speed')
       })
     })

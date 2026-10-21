@@ -21,6 +21,7 @@ const RECIPE = {
   prefix_arch: 'win32' as const,
   user_data: ['SAVES'],
   dll_overrides: ['dinput8'],
+  controller_layout: null,
   generator: 'plumber 1.0.0'
 }
 

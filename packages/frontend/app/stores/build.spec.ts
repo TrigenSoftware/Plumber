@@ -370,6 +370,48 @@ describe('stores', () => {
       })
     })
 
+    it('should pack the controller layout the human pasted', async () => {
+      const { game, build } = await setup()
+      const { written } = pickFile()
+
+      game.$mapController(true)
+      game.$layoutLink('https://www.steaminputdb.com/config/3036980641')
+      build.build()
+      await waitTasks(build.$phase)
+
+      const recipe = filesOf(await unpackMeta(written())).get('./recipe.json')
+
+      expect(JSON.parse(decoder.decode(recipe)).controller_layout).toBe('3036980641')
+    })
+
+    it('should not offer to build with mapping on and no layout to map with', async () => {
+      const { game, build } = await setup()
+
+      game.$mapController(true)
+
+      expect(build.$canBuild()).toBe(false)
+
+      game.$layoutLink('Deus Ex Steam Deck Perfection')
+
+      expect(build.$canBuild()).toBe(false)
+    })
+
+    it('should pack no layout while mapping is off, whatever the field holds', async () => {
+      const { game, build } = await setup()
+      const { written } = pickFile()
+
+      game.$layoutLink('Deus Ex Steam Deck Perfection')
+
+      expect(build.$canBuild()).toBe(true)
+
+      build.build()
+      await waitTasks(build.$phase)
+
+      const recipe = filesOf(await unpackMeta(written())).get('./recipe.json')
+
+      expect(JSON.parse(decoder.decode(recipe)).controller_layout).toBeNull()
+    })
+
     it('should pack the artwork the build was started with', async () => {
       const { artwork, build } = await setup()
       const { written } = pickFile()

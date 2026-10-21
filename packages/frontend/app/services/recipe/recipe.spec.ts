@@ -27,7 +27,8 @@ const INPUT = {
   exe: 'Need for Speed Most Wanted/speed.exe',
   prefixArch: 'win32' as const,
   userData: ['SAVES'],
-  dllOverrides: ['dinput8']
+  dllOverrides: ['dinput8'],
+  controllerLayout: '3036980641'
 }
 
 describe('services', () => {
@@ -120,6 +121,14 @@ describe('services', () => {
         expect(recipe.dll_overrides).toEqual([])
       })
 
+      it('should carry the Workshop ID of the controller layout, or null for none', () => {
+        expect(buildRecipe(INPUT).controller_layout).toBe('3036980641')
+        expect(buildRecipe({
+          ...INPUT,
+          controllerLayout: null
+        }).controller_layout).toBeNull()
+      })
+
       it('should use the key names the installer reads', () => {
         expect(Object.keys(buildRecipe(INPUT))).toEqual([
           'name',
@@ -128,6 +137,7 @@ describe('services', () => {
           'prefix_arch',
           'user_data',
           'dll_overrides',
+          'controller_layout',
           'generator'
         ])
       })

@@ -312,6 +312,66 @@ describe('stores', () => {
         expect(game.$overrideWrappers()).toBe(false)
       })
 
+      it('should leave mapping off at first', () => {
+        const game = createGame()
+
+        expect(game.$mapController()).toBe(false)
+        expect(game.$layoutMissing()).toBe(false)
+      })
+
+      it('should find the layout in the link pasted while mapping is on', () => {
+        const game = createGame()
+
+        game.$mapController(true)
+        game.$layoutLink('https://www.steaminputdb.com/config/3036980641')
+
+        expect(game.$layoutId()).toBe('3036980641')
+        expect(game.$layoutInvalid()).toBe(false)
+        expect(game.$layoutMissing()).toBe(false)
+      })
+
+      it('should give no layout while mapping is off, whatever the field holds', () => {
+        const game = createGame()
+
+        game.$layoutLink('https://www.steaminputdb.com/config/3036980641')
+
+        expect(game.$layoutId()).toBeNull()
+        expect(game.$layoutMissing()).toBe(false)
+      })
+
+      it('should wait for a layout once mapping is on', () => {
+        const game = createGame()
+
+        game.$mapController(true)
+
+        expect(game.$layoutMissing()).toBe(true)
+      })
+
+      it('should tell text that is not a link to a layout from an empty field', () => {
+        const game = createGame()
+
+        expect(game.$layoutInvalid()).toBe(false)
+
+        game.$mapController(true)
+        game.$layoutLink('Deus Ex Steam Deck Perfection')
+
+        expect(game.$layoutId()).toBeNull()
+        expect(game.$layoutInvalid()).toBe(true)
+        expect(game.$layoutMissing()).toBe(true)
+      })
+
+      it('should drop the mapping set up for the last game when another archive comes', async () => {
+        const game = await loaded()
+
+        game.$mapController(true)
+        game.$layoutLink('https://www.steaminputdb.com/config/3036980641')
+        game.$file(archiveOf('Hot Pursuit 2.zip'))
+        await waitTasks(game.$archive)
+
+        expect(game.$mapController()).toBe(false)
+        expect(game.$layoutLink()).toBe('')
+      })
+
       it('should leave the form alone while nothing shows it', async () => {
         const game = createGame()
 

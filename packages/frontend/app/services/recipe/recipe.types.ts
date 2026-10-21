@@ -17,6 +17,12 @@ export interface Recipe {
    * decision - the human unticked the box - and the installer honours it.
    */
   dll_overrides: string[]
+  /**
+   * The Workshop ID of a controller layout for a game made for keyboard and
+   * mouse, or null. The installer points the game at it, and Steam fetches
+   * the layout itself (7.8).
+   */
+  controller_layout: string | null
   generator: string
 }
 
@@ -26,4 +32,5 @@ export interface RecipeInput {
   prefixArch: PrefixArch
   userData: string[]
   dllOverrides: string[]
+  controllerLayout: string | null
 }

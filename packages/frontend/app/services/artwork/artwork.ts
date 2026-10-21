@@ -54,7 +54,7 @@ export const ART_SLOTS: ArtSlotSpec[] = [
  *
  * @returns A search link into the right section of SteamGridDB, filtered by size when a size is given.
  */
-export function steamGridDbUrl(section: string, term: string, dimensions?: string) {
+export function getSteamGridDbUrl(section: string, term: string, dimensions?: string) {
   const filter = dimensions ? `/${dimensions}/all/all` : ''
 
   return `https://www.steamgriddb.com/search/${section}${filter}?term=${encodeURIComponent(term)}`

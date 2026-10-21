@@ -1,0 +1,8 @@
+.root {
+  display: grid;
+  gap: var(--sizeSpace);
+}
+
+.error {
+  color: var(--colorDanger);
+}

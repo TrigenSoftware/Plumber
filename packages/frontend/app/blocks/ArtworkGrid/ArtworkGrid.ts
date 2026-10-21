@@ -8,7 +8,7 @@ import {
   type ArtItem,
   ART_SLOTS,
   ART_TYPES,
-  steamGridDbUrl
+  getSteamGridDbUrl
 } from '~/services/artwork'
 import { Artwork$ } from '~/stores/artwork'
 import { Game$ } from '~/stores/game'
@@ -55,7 +55,7 @@ export const ArtworkGrid = component$(({
         title: spec.slot,
         size: `${spec.width}×${spec.height}`,
         sourceLabel: spec.hint,
-        sourceUrl: () => steamGridDbUrl(spec.section, $name() || 'game', spec.dimensions),
+        sourceUrl: () => getSteamGridDbUrl(spec.section, $name() || 'game', spec.dimensions),
         accept: ART_TYPES.join(','),
         preview: () => previewOf($slots()[spec.slot]),
         clearLabel: 'Remove',

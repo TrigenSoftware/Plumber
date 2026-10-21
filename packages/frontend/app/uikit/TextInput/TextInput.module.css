@@ -17,3 +17,8 @@
 .root:is(:hover, :focus, :active):not(:disabled) {
   border-color: var(--colorBrandLight);
 }
+
+/* What is typed is wrong, and stays marked while it is corrected. */
+.root[aria-invalid=true]:not(:disabled) {
+  border-color: var(--colorDanger);
+}
