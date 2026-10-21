@@ -560,7 +560,7 @@ All of them warn, and none of them blocks the button:
 
 - there is not a single `.exe` in the archive (the select is empty, there is nothing to build)
 - the UTF-8 bit 11 is not set **and** there are non-ASCII names → Cyrillic names will arrive garbled, suggest 7-Zip
-- the size is > 4 GB → a reminder about exFAT
+- the size is 4 GiB or more → the installer does not fit on FAT32, which caps a file a byte short of 4 GiB and is how USB sticks and memory cards up to 32 GB usually come; exFAT has no such limit
 - `navigator.storage.estimate()` < the size of the archive → there will not be enough space (Chrome writes into a temporary swap file and swaps it in at the end). Only where the picker is: Firefox 157 reports the quota of the site instead, 7.4 GiB on a disk with 51 GB free
 - the chosen exe got a negative weight under 7.2.1 (the person picked by hand what we ranked down): warn, but do not stand in the way
 - the artwork is not filled in
