@@ -4,8 +4,13 @@ import type {
   CheckInput
 } from './checks.types.ts'
 
-/** 4 GiB: a single file past this does not fit on a default-formatted exFAT card. */
-const EXFAT_FILE_LIMIT = 4294967296
+/**
+ * The largest file FAT32 holds, a byte short of 4 GiB. exFAT has no such limit,
+ * but USB sticks and memory cards up to 32 GB usually come formatted as FAT32.
+ * The check goes by the archive, which the installer outgrows only by its
+ * header and meta: an archive that close to the limit is the one case it misses.
+ */
+const FAT32_FILE_LIMIT = 4294967295
 
 /**
  * Everything here warns and nothing blocks (6.3). Games are strange, and a
@@ -32,11 +37,12 @@ export function preflight(input: CheckInput): Check[] {
     })
   }
 
-  if (input.archiveSize > EXFAT_FILE_LIMIT) {
+  if (input.archiveSize > FAT32_FILE_LIMIT) {
     checks.push({
       level: 'note',
-      message: `The archive is ${formatSize(input.archiveSize)}. A single file over 4 GB does not fit `
-        + 'on an exFAT card formatted with the default settings - check the card before copying.'
+      message: `The archive is ${formatSize(input.archiveSize)}, so the installer will be a little bigger: `
+        + 'too big for a drive formatted as FAT32, as USB sticks and memory cards up to 32 GB usually are. '
+        + 'Use one formatted as exFAT, or copy the file over the network.'
     })
   }
 

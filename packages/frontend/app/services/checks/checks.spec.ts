@@ -40,13 +40,23 @@ describe('services', () => {
         expect(messages.join(' ')).toContain('7-Zip')
       })
 
-      it('should mention exFAT past 4 GiB', () => {
+      it('should warn about FAT32 once the archive reaches 4 GiB, and point to exFAT', () => {
         const messages = preflight({
           ...CLEAN,
-          archiveSize: 5 * 1024 ** 3
+          archiveSize: 4 * 1024 ** 3
         }).map(check => check.message)
 
-        expect(messages.join(' ')).toContain('exFAT')
+        expect(messages.join(' ')).toContain('too big for a drive formatted as FAT32')
+        expect(messages.join(' ')).toContain('Use one formatted as exFAT')
+      })
+
+      it('should leave an archive of 4 GB in decimal units alone: FAT32 holds it', () => {
+        const messages = preflight({
+          ...CLEAN,
+          archiveSize: 4_000_000_000
+        }).map(check => check.message)
+
+        expect(messages.join(' ')).not.toContain('FAT32')
       })
 
       it('should warn when the browser has less free space than the archive', () => {
